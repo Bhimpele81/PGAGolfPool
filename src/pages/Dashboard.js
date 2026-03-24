@@ -9,12 +9,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [billPicks, setBillPicks] = useState(Array(8).fill(''));
   const [donPicks, setDonPicks]   = useState(Array(8).fill(''));
-  const [saved, setSaved] = useState(false);
+  const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     const entries = getEntries();
-    if (entries.bill?.length) setBillPicks([...entries.bill, ...Array(8).fill('')].slice(0,8));
-    if (entries.don?.length)  setDonPicks([...entries.don,  ...Array(8).fill('')].slice(0,8));
+    if (entries.bill?.length) {
+      setBillPicks([...entries.bill, ...Array(8).fill('')].slice(0,8));
+      setDonPicks([...entries.don,  ...Array(8).fill('')].slice(0,8));
+      setLocked(entries.locked || false);
+    }
   }, []);
 
   const update = useCallback(async () => {
@@ -31,10 +34,14 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [update]);
 
-  const handleSave = () => {
-    saveEntries({ bill: billPicks.filter(Boolean), don: donPicks.filter(Boolean) });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleLock = () => {
+    saveEntries({ bill: billPicks.filter(Boolean), don: donPicks.filter(Boolean), locked: true });
+    setLocked(true);
+  };
+
+  const handleUnlock = () => {
+    saveEntries({ bill: billPicks.filter(Boolean), don: donPicks.filter(Boolean), locked: false });
+    setLocked(false);
   };
 
   const enrich = (picks) =>
@@ -54,103 +61,26 @@ export default function Dashboard() {
 
   const fmtScore = (s) => s == null ? '--' : s > 0 ? '+'+s : s === 0 ? 'E' : String(s);
 
-  // Golfers already picked by each player (excluding blanks)
+  const billBest3 = best3Names(billData);
+  const donBest3  = best3Names(donData);
+
+  // All picked names to grey out in dropdowns
   const billChosen = billPicks.filter(Boolean);
   const donChosen  = donPicks.filter(Boolean);
 
-  const PickDropdown = ({ picks, setPicks, otherPicks, headerClass, player }) => (
-    <div className="card">
-      <div className={`section-header ${headerClass}`}>
-        <span className="section-header-title">{player}'s Picks ({picks.filter(Boolean).length}/8)</span>
-      </div>
-      <div className="card-body">
-        {picks.map((val, i) => (
-          <div className="golfer-row" key={i}>
-            <span>{i+1}.</span>
-            <select
-              className="form-select"
-              value={val}
-              onChange={e => {
-                const copy = [...picks];
-                copy[i] = e.target.value;
-                setPicks(copy);
-              }}
-            >
-              <option value="">-- Select Golfer --</option>
-              {leaderboard.map(g => {
-                const takenByMe    = picks.includes(g.name) && picks[i] !== g.name;
-                const takenByOther = otherPicks.includes(g.name);
-                if (takenByMe) return null;
-                return (
-                  <option key={g.name} value={g.name} disabled={takenByOther}>
-                    {g.name} ({fmtScore(g.strokes)}) {takenByOther ? '✗' : ''}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const PlayerScorecard = ({ player, data, headerClass }) => {
-    const sorted = [...data].sort((a,b) => (a.strokes ?? 999) - (b.strokes ?? 999));
-    const best3  = best3Names(data);
-    return (
-      <div className="card">
-        <div className={`section-header ${headerClass}`}>
-          <span className="section-header-title">{player}'s Scorecard</span>
-          <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>⭐ = counts</span>
-        </div>
-        <table className="data-table">
-          <thead><tr><th>Golfer</th><th>Strokes</th><th>Place</th><th>Thru</th></tr></thead>
-          <tbody>
-            {sorted.length === 0
-              ? <tr><td colSpan={4} style={{color:'var(--text-muted)',padding:'12px'}}>No picks saved yet</td></tr>
-              : sorted.map(g => (
-                <tr key={g.name} className={best3.includes(g.name) ? 'highlight' : ''}>
-                  <td>{best3.includes(g.name) ? '⭐ ' : ''}{g.name}</td>
-                  <td>{fmtScore(g.strokes)}</td>
-                  <td>{g.place ?? '--'}</td>
-                  <td>{g.thru ?? '--'}</td>
-                </tr>
-              ))
-            }
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
   return (
     <div>
-      {/* Header row */}
+      {/* Status */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
-        <div className="page-title" style={{marginBottom:0}}>⛳ Dashboard</div>
+        <div className="page-title" style={{marginBottom:0}}>⛳ PGA Golf Pool</div>
         <span className="status-bar">
           {loading ? '🔄 Fetching scores...' : lastUpdated ? `⏱ Updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
         </span>
       </div>
 
-      {/* Draft pickers */}
-      <div className="draft-grid">
-        <PickDropdown player="Bill" picks={billPicks} setPicks={setBillPicks} otherPicks={donChosen}  headerClass="bill-header" />
-        <PickDropdown player="Don"  picks={donPicks}  setPicks={setDonPicks}  otherPicks={billChosen} headerClass="don-header" />
-      </div>
-      <div className="action-bar" style={{marginBottom:'24px'}}>
-        <button className="btn btn-primary" onClick={handleSave}>{saved ? '✅ Saved!' : 'Save Picks'}</button>
-      </div>
-
-      {/* Scorecards */}
-      <div className="player-tables-grid">
-        <PlayerScorecard player="Bill" data={billData} headerClass="bill-header" />
-        <PlayerScorecard player="Don"  data={donData}  headerClass="don-header" />
-      </div>
-
-      {/* Scoring summary */}
-      {scoring && (
-        <div className="card">
+      {/* Scoring Summary */}
+      {scoring && locked && (
+        <div className="card" style={{marginBottom:'16px'}}>
           <div className="card-header"><span className="card-title">Scoring Summary</span></div>
           <div className="card-body">
             <div className="scoring-summary">
@@ -162,9 +92,89 @@ export default function Dashboard() {
         </div>
       )}
 
-      {leaderboard.length === 0 && !loading && (
-        <div className="card"><div className="card-body" style={{color:'var(--text-muted)'}}>No tournament in progress or ESPN data unavailable.</div></div>
-      )}
+      {/* Main leaderboard table with pick columns */}
+      <div className="card">
+        <div className="card-header" style={{display:'flex',alignItems:'center',gap:'12px'}}>
+          <span className="card-title">ESPN Leaderboard</span>
+          <span style={{marginLeft:'auto',display:'flex',gap:'8px',alignItems:'center'}}>
+            {!locked
+              ? <button className="btn btn-green btn-sm" onClick={handleLock} disabled={!billChosen.length && !donChosen.length}>🔒 Lock Picks</button>
+              : <button className="btn btn-secondary btn-sm" onClick={handleUnlock}>🔓 Edit Picks</button>
+            }
+          </span>
+        </div>
+        {leaderboard.length === 0 ? (
+          <div className="card-body" style={{color:'var(--text-muted)'}}>
+            {loading ? 'Loading leaderboard...' : 'No tournament in progress or ESPN data unavailable.'}
+          </div>
+        ) : (
+          <div style={{overflowX:'auto'}}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Place</th>
+                  <th>Golfer</th>
+                  <th>Strokes</th>
+                  <th>Thru</th>
+                  <th style={{textAlign:'center',color:'#60a5fa'}}>Bill</th>
+                  <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((g, i) => {
+                  const billHas = billChosen.includes(g.name);
+                  const donHas  = donChosen.includes(g.name);
+                  const isBillBest = billBest3.includes(g.name);
+                  const isDonBest  = donBest3.includes(g.name);
+                  const rowHighlight = locked && (isBillBest || isDonBest) ? {background:'rgba(34,197,94,0.07)'} : {};
+                  return (
+                    <tr key={i} style={rowHighlight}>
+                      <td>{g.place}</td>
+                      <td>
+                        {g.name}
+                        {locked && isBillBest && <span style={{marginLeft:'6px',color:'#60a5fa',fontSize:'11px'}}>Bill⭐</span>}
+                        {locked && isDonBest  && <span style={{marginLeft:'6px',color:'#f87171',fontSize:'11px'}}>Don⭐</span>}
+                      </td>
+                      <td>{fmtScore(g.strokes)}</td>
+                      <td>{g.thru}</td>
+                      <td style={{textAlign:'center'}}>
+                        {locked
+                          ? (billHas ? <span style={{color:'#60a5fa',fontWeight:700}}>✓</span> : '')
+                          : <input type="checkbox" checked={billHas}
+                              onChange={() => {
+                                if (billHas) {
+                                  setBillPicks(prev => { const c=[...prev]; c[c.indexOf(g.name)]=''; return c; });
+                                } else if (billChosen.length < 8) {
+                                  setBillPicks(prev => { const c=[...prev]; const idx=c.indexOf(''); if(idx>-1) c[idx]=g.name; return c; });
+                                }
+                              }}
+                              style={{cursor:'pointer',width:'16px',height:'16px'}}
+                            />
+                        }
+                      </td>
+                      <td style={{textAlign:'center'}}>
+                        {locked
+                          ? (donHas ? <span style={{color:'#f87171',fontWeight:700}}>✓</span> : '')
+                          : <input type="checkbox" checked={donHas}
+                              onChange={() => {
+                                if (donHas) {
+                                  setDonPicks(prev => { const c=[...prev]; c[c.indexOf(g.name)]=''; return c; });
+                                } else if (donChosen.length < 8) {
+                                  setDonPicks(prev => { const c=[...prev]; const idx=c.indexOf(''); if(idx>-1) c[idx]=g.name; return c; });
+                                }
+                              }}
+                              style={{cursor:'pointer',width:'16px',height:'16px'}}
+                            />
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
