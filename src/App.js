@@ -29,7 +29,7 @@ export default function App() {
               >{t.label}</button>
             ))}
             <a
-              href="https://ncaabowlpool.onrender.com"
+              href="https://nascarpool.onrender.com/"
               target="_blank"
               rel="noopener noreferrer"
               className="nav-btn"
