@@ -74,19 +74,14 @@ export default function Dashboard() {
     const totalStrokes = data.filter(g => best3.includes(g.name) && g.strokes != null)
       .reduce((sum, g) => sum + g.strokes, 0);
     return (
-      <div className="card" style={{flex:1}}>
+      <div className="card" style={{flex:1,minWidth:'280px'}}>
         <div className="card-header" style={{background: headerBg, borderRadius:'8px 8px 0 0'}}>
           <span className="card-title" style={{color:'#fff',fontSize:'16px',fontWeight:700}}>{player}</span>
           <span style={{marginLeft:'auto',color:'rgba(255,255,255,0.8)',fontSize:'13px'}}>{picks.length}/8 picks</span>
         </div>
         <table className="data-table">
           <thead>
-            <tr>
-              <th>Golfer</th>
-              <th>Strokes</th>
-              <th>Place</th>
-              <th>Thru</th>
-            </tr>
+            <tr><th>Golfer</th><th>Strokes</th><th>Place</th><th>Thru</th></tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
@@ -94,9 +89,7 @@ export default function Dashboard() {
             ) : data.map((g, i) => (
               <tr key={i} style={best3.includes(g.name) ? {background:'rgba(34,197,94,0.10)',fontWeight:600} : {}}>
                 <td>{best3.includes(g.name) ? '⭐ ' : ''}{g.name}</td>
-                <td style={{color: g.strokes < 0 ? '#4ade80' : g.strokes > 0 ? '#f87171' : 'inherit'}}>
-                  {fmtScore(g.strokes)}
-                </td>
+                <td style={{color: g.strokes < 0 ? '#4ade80' : g.strokes > 0 ? '#f87171' : 'inherit'}}>{fmtScore(g.strokes)}</td>
                 <td>{g.place ?? '--'}</td>
                 <td>{g.thru ?? '--'}</td>
               </tr>
@@ -106,7 +99,7 @@ export default function Dashboard() {
         {data.length > 0 && (
           <div style={{padding:'8px 16px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',fontSize:'13px'}}>
             <span style={{color:'var(--text-muted)'}}>Best 3 Score:</span>
-            <span style={{fontWeight:700, color: accentColor}}>{fmtScore(totalStrokes)}</span>
+            <span style={{fontWeight:700,color:accentColor}}>{fmtScore(totalStrokes)}</span>
           </div>
         )}
       </div>
@@ -123,15 +116,35 @@ export default function Dashboard() {
         </span>
       </div>
 
-      {/* Scoring Summary */}
-      {scoring && locked && (
+      {/* Scoring Summary — always visible once there are picks */}
+      {scoring && (
         <div className="card" style={{marginBottom:'16px'}}>
-          <div className="card-header"><span className="card-title">Scoring Summary</span></div>
+          <div className="card-header">
+            <span className="card-title">🏆 Running Totals</span>
+            <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>{locked ? '🔒 Picks Locked' : '🟡 Picks Unlocked'}</span>
+          </div>
           <div className="card-body">
             <div className="scoring-summary">
-              <div className="score-box"><div className="label">🏆 Golfer Win</div><div className="value">{scoring.golferWin}</div></div>
-              <div className="score-box"><div className="label">📊 Best Cum. Score</div><div className="value">{scoring.bestCumWinner}</div></div>
-              <div className="score-box"><div className="label">💰 Differential ({scoring.differential} strokes)</div><div className="value">${scoring.differentialPayout}</div></div>
+              <div className="score-box">
+                <div className="label" style={{color:'#60a5fa'}}>Bill Best 3</div>
+                <div className="value">{fmtScore(scoring.billTotal)}</div>
+              </div>
+              <div className="score-box">
+                <div className="label" style={{color:'#f87171'}}>Don Best 3</div>
+                <div className="value">{fmtScore(scoring.donTotal)}</div>
+              </div>
+              <div className="score-box">
+                <div className="label">🏆 Lowest Golfer</div>
+                <div className="value">{scoring.golferWin}</div>
+              </div>
+              <div className="score-box">
+                <div className="label">📊 Best Cum. Score</div>
+                <div className="value">{scoring.bestCumWinner}</div>
+              </div>
+              <div className="score-box">
+                <div className="label">💰 Differential</div>
+                <div className="value">{scoring.differential} strokes (${scoring.differentialPayout})</div>
+              </div>
             </div>
           </div>
         </div>
@@ -151,61 +164,72 @@ export default function Dashboard() {
         }
       </div>
 
-      {/* ESPN Leaderboard — shown when unlocked */}
-      {!locked && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">ESPN Leaderboard — Select Picks</span>
-            <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
-          </div>
-          {leaderboard.length === 0 ? (
-            <div className="card-body" style={{color:'var(--text-muted)'}}>
-              {loading ? 'Loading leaderboard...' : 'No tournament data available.'}
-            </div>
-          ) : (
-            <div style={{overflowX:'auto'}}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Place</th>
-                    <th>Golfer</th>
-                    <th>Strokes</th>
-                    <th>Thru</th>
-                    <th style={{textAlign:'center',color:'#60a5fa'}}>Bill</th>
-                    <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.map((g, i) => {
-                    const billHas = billPicks.includes(g.name);
-                    const donHas  = donPicks.includes(g.name);
-                    return (
-                      <tr key={i} style={billHas || donHas ? {background:'rgba(255,255,255,0.04)'} : {}}>
-                        <td>{g.place}</td>
-                        <td style={{fontWeight: billHas||donHas ? 600 : 400}}>{g.name}</td>
-                        <td>{fmtScore(g.strokes)}</td>
-                        <td>{g.thru}</td>
-                        <td style={{textAlign:'center'}}>
-                          <input type="checkbox" checked={billHas}
-                            onChange={() => togglePick(setBillPicks, billPicks, g.name)}
-                            style={{cursor:'pointer',width:'16px',height:'16px'}}
-                          />
-                        </td>
-                        <td style={{textAlign:'center'}}>
-                          <input type="checkbox" checked={donHas}
-                            onChange={() => togglePick(setDonPicks, donPicks, g.name)}
-                            style={{cursor:'pointer',width:'16px',height:'16px'}}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+      {/* ESPN Leaderboard — always visible */}
+      <div className="card">
+        <div className="card-header">
+          <span className="card-title">ESPN Leaderboard{!locked ? ' — Select Picks' : ''}</span>
+          <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
         </div>
-      )}
+        {leaderboard.length === 0 ? (
+          <div className="card-body" style={{color:'var(--text-muted)'}}>
+            {loading ? 'Loading leaderboard...' : 'No tournament data available.'}
+          </div>
+        ) : (
+          <div style={{overflowX:'auto'}}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Place</th>
+                  <th>Golfer</th>
+                  <th>Strokes</th>
+                  <th>Thru</th>
+                  <th style={{textAlign:'center',color:'#60a5fa'}}>Bill</th>
+                  <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((g, i) => {
+                  const billHas    = billPicks.includes(g.name);
+                  const donHas     = donPicks.includes(g.name);
+                  const isBillBest = locked && billBest3.includes(g.name);
+                  const isDonBest  = locked && donBest3.includes(g.name);
+                  const highlight  = isBillBest || isDonBest;
+                  return (
+                    <tr key={i} style={highlight ? {background:'rgba(34,197,94,0.07)'} : billHas||donHas ? {background:'rgba(255,255,255,0.03)'} : {}}>
+                      <td>{g.place}</td>
+                      <td>
+                        {g.name}
+                        {isBillBest && <span style={{marginLeft:'6px',color:'#60a5fa',fontSize:'11px',fontWeight:700}}>Bill⭐</span>}
+                        {isDonBest  && <span style={{marginLeft:'6px',color:'#f87171',fontSize:'11px',fontWeight:700}}>Don⭐</span>}
+                      </td>
+                      <td>{fmtScore(g.strokes)}</td>
+                      <td>{g.thru}</td>
+                      <td style={{textAlign:'center'}}>
+                        {locked
+                          ? (billHas ? <span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
+                          : <input type="checkbox" checked={billHas}
+                              onChange={() => togglePick(setBillPicks, billPicks, g.name)}
+                              style={{cursor:'pointer',width:'16px',height:'16px'}}
+                            />
+                        }
+                      </td>
+                      <td style={{textAlign:'center'}}>
+                        {locked
+                          ? (donHas ? <span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
+                          : <input type="checkbox" checked={donHas}
+                              onChange={() => togglePick(setDonPicks, donPicks, g.name)}
+                              style={{cursor:'pointer',width:'16px',height:'16px'}}
+                            />
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
