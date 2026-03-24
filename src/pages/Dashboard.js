@@ -5,7 +5,7 @@ import { fetchLeaderboard } from '../utils/espnGolfApi';
 
 const TOURNAMENT = '2026-masters';
 
-export default function Dashboard({ userName }) {
+export default function Dashboard() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading]         = useState(false);
@@ -55,12 +55,8 @@ export default function Dashboard({ userName }) {
     return () => clearInterval(interval);
   }, [update]);
 
-  const isBill = userName === 'Bill';
-  const isDon  = userName === 'Don';
-
   const togglePick = async (player, picks, setter, name) => {
     if (locked) return;
-    if ((player === 'Bill' && !isBill) || (player === 'Don' && !isDon)) return;
     let updated;
     if (picks.includes(name)) updated = picks.filter(n => n !== name);
     else if (picks.length < 8) updated = [...picks, name];
@@ -109,13 +105,10 @@ export default function Dashboard({ userName }) {
       .filter(g => g && best3.includes(g.name) && g.strokes != null)
       .reduce((sum, g) => sum + g.strokes, 0);
     const hasScores = rows.some(g => g && g.strokes != null);
-    const isOwner   = (player === 'Bill' && isBill) || (player === 'Don' && isDon);
     return (
       <div className="card" style={{flex:1,minWidth:'280px',display:'flex',flexDirection:'column',marginBottom:0}}>
         <div style={{background:headerBg,padding:'6px 14px',borderRadius:'8px 8px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <span style={{color:'#fff',fontSize:'15px',fontWeight:700}}>
-            {player} {isOwner && <span style={{fontSize:'11px',opacity:0.75}}>(you)</span>}
-          </span>
+          <span style={{color:'#fff',fontSize:'15px',fontWeight:700}}>{player}</span>
           <span style={{color:'rgba(255,255,255,0.75)',fontSize:'12px'}}>{picks.length}/8 picks</span>
         </div>
         <table className="data-table" style={{flex:1}}>
@@ -225,8 +218,8 @@ export default function Dashboard({ userName }) {
                       </td>
                       <td>{fmtScore(g.strokes)}</td>
                       <td>{g.thru}</td>
-                      <td>{locked?(billHas?<span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span>:''):<input type="checkbox" checked={billHas} onChange={()=>isBill&&togglePick('Bill',billPicks,setBillPicks,g.name)} style={{cursor:isBill?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isBill?1:0.4}}/>}</td>
-                      <td>{locked?(donHas?<span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span>:''):<input type="checkbox" checked={donHas} onChange={()=>isDon&&togglePick('Don',donPicks,setDonPicks,g.name)} style={{cursor:isDon?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isDon?1:0.4}}/>}</td>
+                      <td><input type="checkbox" checked={billHas} onChange={()=>!locked&&togglePick('Bill',billPicks,setBillPicks,g.name)} style={{cursor:locked?'not-allowed':'pointer',width:'16px',height:'16px',opacity:locked?0.4:1}}/></td>
+                      <td><input type="checkbox" checked={donHas}  onChange={()=>!locked&&togglePick('Don',donPicks,setDonPicks,g.name)}  style={{cursor:locked?'not-allowed':'pointer',width:'16px',height:'16px',opacity:locked?0.4:1}}/></td>
                     </tr>
                   );
                 })}
