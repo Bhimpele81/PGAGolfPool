@@ -1,43 +1,206 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a1a; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-.navbar { background: #1a3c5e; padding: 1rem 2rem; display: flex; gap: 2rem; align-items: center; }
-.navbar h1 { color: #f0c040; font-size: 1.4rem; margin-right: auto; }
-.navbar a { color: white; text-decoration: none; font-weight: 500; font-size: 1rem; }
-.navbar a:hover { color: #f0c040; }
+:root {
+  --navy:        #0d1b2a;
+  --navy-mid:    #152336;
+  --navy-light:  #1e3148;
+  --navy-card:   #1a2d42;
+  --navy-border: #2a4060;
+  --blue:        #2563eb;
+  --blue-light:  #60a5fa;
+  --blue-pale:   #bfdbfe;
+  --white:       #ffffff;
+  --text:        #e2eaf4;
+  --text-muted:  #6b8aaa;
+  --text-dim:    #3d5a7a;
+  --green:       #22c55e;
+  --green-dark:  #16a34a;
+  --green-bg:    rgba(34,197,94,0.1);
+  --red:         #f87171;
+  --red-bg:      rgba(248,113,113,0.1);
+  --yellow:      #fbbf24;
+  --font-display: 'Inter', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --radius:    8px;
+  --radius-sm: 5px;
+  --shadow:    0 2px 16px rgba(0,0,0,0.35);
+}
 
-.page { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
-h2 { font-size: 1.5rem; margin-bottom: 1rem; color: #1a3c5e; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.card { background: white; border-radius: 10px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+body {
+  font-family: var(--font-body);
+  background: var(--navy);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
 
-.leaderboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+/* ── Header ── */
+.app-header {
+  background: var(--navy-mid);
+  border-bottom: 1px solid var(--navy-border);
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 1px 12px rgba(0,0,0,0.4);
+}
+.header-inner {
+  max-width: 1200px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px;
+}
+.header-brand { display: flex; align-items: center; gap: 10px; }
+.flag-icon { font-size: 20px; }
+.brand-title {
+  font-size: 17px; font-weight: 700; letter-spacing: 0.3px;
+  color: var(--white);
+}
+.brand-sub {
+  font-size: 12px; font-weight: 500; color: var(--text-muted);
+  letter-spacing: 0.5px; border-left: 1px solid var(--navy-border);
+  padding-left: 10px; margin-left: 4px;
+}
+.header-nav { display: flex; gap: 2px; }
+.nav-btn {
+  background: transparent; color: var(--text-muted); border: none;
+  padding: 6px 14px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border-radius: var(--radius-sm); transition: all 0.15s;
+}
+.nav-btn:hover { color: var(--white); background: var(--navy-light); }
+.nav-btn.active { color: var(--white); background: var(--blue); }
 
-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-th { background: #1a3c5e; color: white; padding: 0.6rem 0.8rem; text-align: left; }
-td { padding: 0.5rem 0.8rem; border-bottom: 1px solid #e0e0e0; }
-tr:hover td { background: #f5f5f5; }
-.highlight td { background: #fffde7 !important; font-weight: bold; }
+/* ── Layout ── */
+.app-main { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-.scoring-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem; }
-.score-box { background: #1a3c5e; color: white; border-radius: 8px; padding: 1rem; text-align: center; }
-.score-box .label { font-size: 0.8rem; opacity: 0.8; margin-bottom: 0.3rem; }
-.score-box .value { font-size: 1.4rem; font-weight: bold; color: #f0c040; }
+/* ── Cards ── */
+.card {
+  background: var(--navy-card); border: 1px solid var(--navy-border);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  margin-bottom: 16px;
+}
+.card-header {
+  padding: 11px 16px; border-bottom: 1px solid var(--navy-border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--navy-light);
+}
+.card-title {
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-muted);
+}
+.card-body { padding: 16px; }
 
-.btn { background: #f0c040; color: #1a1a1a; border: none; padding: 0.6rem 1.4rem; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem; }
-.btn:hover { background: #d4a800; }
-.btn-outline { background: transparent; border: 2px solid #1a3c5e; color: #1a3c5e; padding: 0.5rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; font-size: 13px; font-weight: 600;
+  border: none; border-radius: var(--radius-sm);
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-primary   { background: var(--blue);       color: white; }
+.btn-primary:hover   { background: #1d4ed8; }
+.btn-secondary { background: var(--navy-light);  color: var(--text); border: 1px solid var(--navy-border); }
+.btn-secondary:hover { background: var(--navy-border); }
+.btn-green     { background: var(--green-dark);  color: white; }
+.btn-green:hover     { background: #15803d; }
+.btn-sm        { padding: 4px 10px; font-size: 12px; }
 
-input, select { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 0.5rem; }
-label { font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.2rem; color: #444; }
+/* ── Tables ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--text-muted);
+  padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--navy-border);
+  background: var(--navy-light);
+}
+.data-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--navy-border);
+  vertical-align: middle; color: var(--text);
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: rgba(37,99,235,0.06); }
+.data-table .highlight td { background: rgba(34,197,94,0.08) !important; font-weight: 600; }
 
-.draft-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-.golfer-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
-.golfer-row span { width: 24px; font-size: 0.85rem; color: #888; }
+/* ── Forms ── */
+.form-input, .form-select {
+  width: 100%; padding: 6px 10px;
+  font-family: var(--font-body); font-size: 13px;
+  background: #2a4a6e; color: #ffffff;
+  border: 1px solid #3d6a9a; border-radius: var(--radius-sm);
+  transition: border-color 0.15s;
+}
+.form-input:focus, .form-select:focus {
+  outline: none; border-color: var(--blue-light);
+  box-shadow: 0 0 0 2px rgba(96,165,250,0.15);
+}
+.form-input::placeholder { color: var(--text-dim); }
+.form-select option { background: #152336; color: #ffffff; }
+.form-label {
+  display: block; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-muted); margin-bottom: 5px;
+}
 
-.rules-section { margin-bottom: 1.5rem; }
-.rules-section h3 { color: #1a3c5e; margin-bottom: 0.5rem; }
-.rules-section ul { padding-left: 1.2rem; }
-.rules-section li { margin-bottom: 0.4rem; line-height: 1.5; }
+/* ── Badges ── */
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+}
+.badge-green  { background: var(--green-bg);      color: var(--green); }
+.badge-yellow { background: rgba(251,191,36,0.1);  color: var(--yellow); }
+.badge-blue   { background: rgba(37,99,235,0.15);  color: var(--blue-light); }
 
-.status-bar { font-size: 0.8rem; color: #888; margin-top: 0.5rem; }
+/* ── Scoring summary boxes ── */
+.scoring-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.score-box {
+  background: var(--navy-light); border: 1px solid var(--navy-border);
+  border-radius: var(--radius); padding: 16px; text-align: center;
+}
+.score-box .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; }
+.score-box .value { font-size: 22px; font-weight: 800; color: var(--green); }
+
+/* ── Section headers (Bill / Don tables) ── */
+.section-header {
+  padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+  background: var(--navy-light); border-bottom: 1px solid var(--navy-border);
+}
+.section-header.bill-header { border-left: 3px solid var(--blue); }
+.section-header.don-header  { border-left: 3px solid var(--red); }
+.section-header-title { font-size: 14px; font-weight: 700; color: var(--white); }
+
+/* ── Player tables grid ── */
+.player-tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+/* ── Draft grid ── */
+.draft-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.golfer-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.golfer-row span { width: 20px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+
+/* ── Action bar ── */
+.action-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.status-bar { font-size: 12px; color: var(--text-muted); }
+
+/* ── Page title ── */
+.page-title { font-size: 18px; font-weight: 700; color: var(--white); margin-bottom: 16px; }
+.page-sub   { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+/* ── Rules ── */
+.rules-section { margin-bottom: 20px; }
+.rules-section h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 10px; }
+.rules-section ul { padding-left: 16px; }
+.rules-section li { margin-bottom: 6px; line-height: 1.6; color: var(--text); }
+
+/* ── Alerts ── */
+.alert { padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 12px; }
+.alert-success { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .player-tables-grid { grid-template-columns: 1fr; }
+  .draft-grid { grid-template-columns: 1fr; }
+  .scoring-summary { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .app-main { padding: 12px; }
+  .brand-sub { display: none; }
+}
