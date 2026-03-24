@@ -16,8 +16,7 @@ export default function App() {
       <header className="app-header">
         <div className="header-inner">
           <div className="header-brand">
-            <img src="/pga-logo.png" alt="PGA Tour" style={{height:'40px',objectFit:'contain'}} onError={e => e.target.style.display='none'} />
-            <span className="brand-title">Golf Pool</span>
+            <img src="/pgalogo.jpg" alt="PGA Tour" style={{height:'44px',objectFit:'contain'}} onError={e => e.target.style.display='none'} />
             <span className="brand-sub">Bill vs Don</span>
           </div>
           <nav className="header-nav">
