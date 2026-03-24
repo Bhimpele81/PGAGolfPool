@@ -1,23 +1,46 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getEntries, saveEntries } from '../utils/storage';
+import { supabase } from '../utils/supabase';
 import { computeScoring } from '../utils/scoring';
 import { fetchLeaderboard } from '../utils/espnGolfApi';
 
-export default function Dashboard() {
+const TOURNAMENT = '2026-masters';
+
+export default function Dashboard({ session, userName }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [billPicks, setBillPicks] = useState([]);
-  const [donPicks, setDonPicks]   = useState([]);
-  const [locked, setLocked] = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [billPicks, setBillPicks]     = useState([]);
+  const [donPicks,  setDonPicks]      = useState([]);
+  const [locked,    setLocked]        = useState(false);
+  const [saving,    setSaving]        = useState(false);
 
-  useEffect(() => {
-    const entries = getEntries();
-    setBillPicks(entries.bill || []);
-    setDonPicks(entries.don  || []);
-    setLocked(entries.locked || false);
+  // Load picks from Supabase
+  const loadPicks = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('picks')
+      .select('player, golfers, locked')
+      .eq('tournament', TOURNAMENT);
+    if (error) { console.error(error); return; }
+    data.forEach(row => {
+      if (row.player === 'Bill') { setBillPicks(row.golfers || []); }
+      if (row.player === 'Don')  { setDonPicks(row.golfers  || []); }
+      if (row.locked) setLocked(true);
+    });
   }, []);
 
+  useEffect(() => { loadPicks(); }, [loadPicks]);
+
+  // Save picks for the current user
+  const savePicks = useCallback(async (player, golfers, isLocked) => {
+    setSaving(true);
+    await supabase.from('picks').upsert(
+      { tournament: TOURNAMENT, player, golfers, locked: isLocked },
+      { onConflict: 'tournament,player' }
+    );
+    setSaving(false);
+  }, []);
+
+  // Leaderboard refresh
   const update = useCallback(async () => {
     setLoading(true);
     const data = await fetchLeaderboard();
@@ -33,12 +56,32 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [update]);
 
-  const handleLock = () => { saveEntries({ bill: billPicks, don: donPicks, locked: true });  setLocked(true);  };
-  const handleUnlock = () => { saveEntries({ bill: billPicks, don: donPicks, locked: false }); setLocked(false); };
+  // Only allow editing your own picks
+  const canEdit = !locked || false;
+  const isBill  = userName === 'Bill';
+  const isDon   = userName === 'Don';
 
-  const togglePick = (setter, picks, name) => {
-    if (picks.includes(name)) setter(picks.filter(n => n !== name));
-    else if (picks.length < 8) setter([...picks, name]);
+  const togglePick = async (player, picks, setter, name) => {
+    if (locked) return;
+    if ((player === 'Bill' && !isBill) || (player === 'Don' && !isDon)) return;
+    let updated;
+    if (picks.includes(name)) updated = picks.filter(n => n !== name);
+    else if (picks.length < 8) updated = [...picks, name];
+    else return;
+    setter(updated);
+    await savePicks(player, updated, locked);
+  };
+
+  const handleLock = async () => {
+    await savePicks('Bill', billPicks, true);
+    await savePicks('Don',  donPicks,  true);
+    setLocked(true);
+  };
+
+  const handleUnlock = async () => {
+    await savePicks('Bill', billPicks, false);
+    await savePicks('Don',  donPicks,  false);
+    setLocked(false);
   };
 
   const enrich = (picks) =>
@@ -47,22 +90,20 @@ export default function Dashboard() {
       return { name, ...(found || { strokes: null, place: null, thru: null }) };
     }).sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
 
-  const billData = enrich(billPicks);
-  const donData  = enrich(donPicks);
-  const scoring  = computeScoring(billData, donData);
-
+  const billData  = enrich(billPicks);
+  const donData   = enrich(donPicks);
+  const scoring   = computeScoring(billData, donData);
   const best3Names = (data) =>
     [...data].filter(g => g.strokes != null)
       .sort((a, b) => a.strokes - b.strokes)
       .slice(0, 3).map(g => g.name);
+  const billBest3  = best3Names(billData);
+  const donBest3   = best3Names(donData);
+  const fmtScore   = (s) => s == null ? '--' : s > 0 ? `+${s}` : s === 0 ? 'E' : String(s);
+  const fmtMoney   = (n) => `$${n}`;
 
-  const billBest3 = best3Names(billData);
-  const donBest3  = best3Names(donData);
-  const fmtScore  = (s) => s == null ? '--' : s > 0 ? '+' + s : s === 0 ? 'E' : String(s);
-  const fmtMoney  = (n) => n === 0 ? '$0' : `$${n}`;
-
-  const maxLen    = Math.max(billData.length, donData.length, 1);
-  const pad       = (arr) => [...arr, ...Array(Math.max(0, maxLen - arr.length)).fill(null)];
+  const maxLen     = Math.max(billData.length, donData.length, 1);
+  const pad        = (arr) => [...arr, ...Array(Math.max(0, maxLen - arr.length)).fill(null)];
   const billPadded = pad(billData);
   const donPadded  = pad(donData);
 
@@ -71,10 +112,13 @@ export default function Dashboard() {
       .filter(g => g && best3.includes(g.name) && g.strokes != null)
       .reduce((sum, g) => sum + g.strokes, 0);
     const hasScores = rows.some(g => g && g.strokes != null);
+    const isOwner   = (player === 'Bill' && isBill) || (player === 'Don' && isDon);
     return (
       <div className="card" style={{flex:1,minWidth:'280px',display:'flex',flexDirection:'column',marginBottom:0}}>
         <div style={{background:headerBg,padding:'6px 14px',borderRadius:'8px 8px 0 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <span style={{color:'#fff',fontSize:'15px',fontWeight:700}}>{player}</span>
+          <span style={{color:'#fff',fontSize:'15px',fontWeight:700}}>
+            {player} {isOwner && <span style={{fontSize:'11px',opacity:0.75}}>(you)</span>}
+          </span>
           <span style={{color:'rgba(255,255,255,0.75)',fontSize:'12px'}}>{picks.length}/8 picks</span>
         </div>
         <table className="data-table" style={{flex:1}}>
@@ -87,8 +131,8 @@ export default function Dashboard() {
           <tbody>
             {rows.map((g, i) =>
               g ? (
-                <tr key={i} style={best3.includes(g.name) ? {background:'rgba(34,197,94,0.10)',fontWeight:600} : {}}>
-                  <td style={{textAlign:'left',padding:'6px 12px'}}>{best3.includes(g.name) ? '⭐ ' : ''}{g.name}</td>
+                <tr key={i} style={best3.includes(g.name)?{background:'rgba(34,197,94,0.10)',fontWeight:600}:{}}>
+                  <td style={{textAlign:'left',padding:'6px 12px'}}>{best3.includes(g.name)?'⭐ ':''}{g.name}</td>
                   <td style={{padding:'6px 12px',color:g.strokes<0?'#4ade80':g.strokes>0?'#f87171':'inherit'}}>{fmtScore(g.strokes)}</td>
                   <td style={{padding:'6px 12px'}}>{g.place??'--'}</td>
                   <td style={{padding:'6px 12px'}}>{g.thru??'--'}</td>
@@ -113,24 +157,26 @@ export default function Dashboard() {
     <div>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
         <div className="page-title" style={{marginBottom:0}}>2026 Masters Tournament</div>
-        <span className="status-bar">{loading ? '🔄 Fetching...' : lastUpdated ? `⏱ ${lastUpdated} • auto-refreshes every 60s` : ''}</span>
+        <span className="status-bar">
+          {saving ? '💾 Saving...' : loading ? '🔄 Fetching...' : lastUpdated ? `⏱ ${lastUpdated} • auto-refreshes every 60s` : ''}
+        </span>
       </div>
 
       {/* Net Total Win banner */}
       {scoring && (
         <div style={{
-          background: scoring.netWinner==='Bill' ? 'rgba(30,58,95,0.9)' : scoring.netWinner==='Don' ? 'rgba(95,30,30,0.9)' : 'rgba(30,49,72,0.9)',
-          border: `1px solid ${scoring.netWinner==='Bill'?'#60a5fa':scoring.netWinner==='Don'?'#f87171':'var(--navy-border)'}`,
-          borderRadius:'8px', padding:'10px 18px', marginBottom:'12px',
-          display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'8px'
+          background: scoring.netWinner==='Bill'?'rgba(30,58,95,0.9)':scoring.netWinner==='Don'?'rgba(95,30,30,0.9)':'rgba(30,49,72,0.9)',
+          border:`1px solid ${scoring.netWinner==='Bill'?'#60a5fa':scoring.netWinner==='Don'?'#f87171':'var(--navy-border)'}`,
+          borderRadius:'8px',padding:'10px 18px',marginBottom:'12px',
+          display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'8px'
         }}>
           <div style={{fontSize:'15px',fontWeight:700,color:'#fff'}}>
             🏆 Net Leader: <span style={{color:scoring.netWinner==='Bill'?'#60a5fa':scoring.netWinner==='Don'?'#f87171':'#fbbf24'}}>
-              {scoring.netWinner === 'Tie' ? 'Tied!' : `${scoring.netWinner} leads`}
+              {scoring.netWinner==='Tie'?'Tied!':`${scoring.netWinner} leads`}
             </span>
-            {scoring.netWinner !== 'Tie' && <span style={{color:'#4ade80',marginLeft:'8px'}}>{fmtMoney(scoring.netAmount)}</span>}
+            {scoring.netWinner!=='Tie' && <span style={{color:'#4ade80',marginLeft:'8px'}}>{fmtMoney(scoring.netAmount)}</span>}
           </div>
-          <div style={{display:'flex',gap:'16px',fontSize:'12px',color:'var(--text-muted)'}}>
+          <div style={{display:'flex',gap:'16px',fontSize:'12px',color:'var(--text-muted)',flexWrap:'wrap'}}>
             <span>🏅 Golfer Win: <strong style={{color:'#fff'}}>{scoring.golferWin}</strong></span>
             <span>📊 Cum Score: <strong style={{color:'#fff'}}>{scoring.bestCumWinner}</strong> ({fmtScore(scoring.billTotal)} vs {fmtScore(scoring.donTotal)})</span>
             <span>💰 Diff: <strong style={{color:'#fff'}}>{scoring.differential} strokes ({fmtMoney(scoring.differentialPayout)})</strong></span>
@@ -158,7 +204,7 @@ export default function Dashboard() {
           <span className="card-title">ESPN Leaderboard{!locked?' — Select Picks':''}</span>
           <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
         </div>
-        {leaderboard.length === 0 ? (
+        {leaderboard.length===0 ? (
           <div className="card-body" style={{color:'var(--text-muted)'}}>{loading?'Loading...':'No tournament data available.'}</div>
         ) : (
           <div style={{overflowX:'auto'}}>
@@ -186,8 +232,24 @@ export default function Dashboard() {
                       </td>
                       <td>{fmtScore(g.strokes)}</td>
                       <td>{g.thru}</td>
-                      <td>{locked?(billHas?<span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span>:''):<input type="checkbox" checked={billHas} onChange={()=>togglePick(setBillPicks,billPicks,g.name)} style={{cursor:'pointer',width:'16px',height:'16px'}}/>}</td>
-                      <td>{locked?(donHas?<span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span>:''):<input type="checkbox" checked={donHas} onChange={()=>togglePick(setDonPicks,donPicks,g.name)} style={{cursor:'pointer',width:'16px',height:'16px'}}/>}</td>
+                      <td>
+                        {locked
+                          ? (billHas?<span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span>:'')
+                          : <input type="checkbox" checked={billHas}
+                              onChange={()=>isBill&&togglePick('Bill',billPicks,setBillPicks,g.name)}
+                              style={{cursor:isBill?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isBill?1:0.4}}
+                            />
+                        }
+                      </td>
+                      <td>
+                        {locked
+                          ? (donHas?<span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span>:'')
+                          : <input type="checkbox" checked={donHas}
+                              onChange={()=>isDon&&togglePick('Don',donPicks,setDonPicks,g.name)}
+                              style={{cursor:isDon?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isDon?1:0.4}}
+                            />
+                        }
+                      </td>
                     </tr>
                   );
                 })}
