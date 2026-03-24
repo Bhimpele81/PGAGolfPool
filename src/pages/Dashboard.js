@@ -9,6 +9,7 @@ export default function Dashboard() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading]         = useState(false);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [billPicks, setBillPicks]     = useState([]);
   const [donPicks,  setDonPicks]      = useState([]);
   const [locked,    setLocked]        = useState(false);
@@ -47,6 +48,7 @@ export default function Dashboard() {
     setLeaderboard(sorted);
     setLastUpdated(new Date().toLocaleTimeString());
     setLoading(false);
+    setIsFirstLoad(false);
   }, []);
 
   useEffect(() => {
@@ -145,10 +147,24 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* Updating banner - floats at top, only shows on refresh (not first load) */}
+      {loading && !isFirstLoad && (
+        <div style={{
+          position:'fixed', top:'64px', left:'50%', transform:'translateX(-50%)',
+          background:'#1d4ed8', color:'#fff', padding:'6px 20px',
+          borderRadius:'20px', fontSize:'13px', fontWeight:600,
+          zIndex:999, boxShadow:'0 2px 12px rgba(0,0,0,0.4)',
+          display:'flex', alignItems:'center', gap:'8px'
+        }}>
+          <span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>&#x1F504;</span>
+          Updating scores...
+        </div>
+      )}
+
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
         <div className="page-title" style={{marginBottom:0}}>2026 Masters Tournament</div>
         <span className="status-bar">
-          {saving?'💾 Saving...':loading?'🔄 Fetching...':lastUpdated?`⏱ ${lastUpdated} • auto-refreshes every 60s`:''}
+          {saving?'💾 Saving...':lastUpdated?`⏱ Last updated ${lastUpdated}`:'⏳ Loading...'}
         </span>
       </div>
 
@@ -178,7 +194,6 @@ export default function Dashboard() {
         <TeamPanel player="Don"  rows={donPadded}  best3={donBest3}  picks={donPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
       </div>
 
-      {/* Lock / Unlock button */}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'12px'}}>
         {!locked
           ? <button className="btn btn-green" onClick={handleLock} disabled={billPicks.length===0&&donPicks.length===0}>🔒 Lock Picks</button>
@@ -186,15 +201,16 @@ export default function Dashboard() {
         }
       </div>
 
-      {/* Leaderboard + selection — hidden when locked */}
       {!locked && (
         <div className="card">
           <div className="card-header">
             <span className="card-title">ESPN Leaderboard — Select Picks</span>
             <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
           </div>
-          {leaderboard.length===0 ? (
-            <div className="card-body" style={{color:'var(--text-muted)'}}>{loading?'Loading...':'No tournament data available.'}</div>
+          {isFirstLoad && loading ? (
+            <div className="card-body" style={{color:'var(--text-muted)'}}>Loading leaderboard...</div>
+          ) : leaderboard.length===0 ? (
+            <div className="card-body" style={{color:'var(--text-muted)'}}>No tournament data available.</div>
           ) : (
             <div style={{overflowX:'auto'}}>
               <table className="data-table">
