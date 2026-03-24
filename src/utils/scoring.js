@@ -1,50 +1,43 @@
-// Golf Pool scoring:
-// - Golfer Win: $20 to whoever has the tournament winner
-// - Best Cum Score: $20 to whoever has the lower combined score of best 3 golfers
-// - Differential: $2 per stroke difference between the two best-3 totals
+export function computeScoring(billData, donData) {
+  const best3 = (data) => {
+    const valid = data.filter(g => g.strokes != null);
+    const sorted = [...valid].sort((a, b) => a.strokes - b.strokes);
+    return sorted.slice(0, 3);
+  };
 
-export function calcGolfTotals(billGolfers, donGolfers) {
-  // Filter golfers with strokes filled in, sort by strokes (ascending = better in golf)
-  const billWithScores = billGolfers.filter(g => g.strokes !== '' && g.strokes !== null && !isNaN(parseFloat(g.strokes)));
-  const donWithScores  = donGolfers.filter(g => g.strokes !== '' && g.strokes !== null && !isNaN(parseFloat(g.strokes)));
+  const billBest = best3(billData);
+  const donBest = best3(donData);
 
-  const billSorted = [...billWithScores].sort((a, b) => parseFloat(a.strokes) - parseFloat(b.strokes));
-  const donSorted  = [...donWithScores].sort((a, b) => parseFloat(a.strokes) - parseFloat(b.strokes));
+  if (!billBest.length && !donBest.length) return null;
 
-  const billBest3 = billSorted.slice(0, 3);
-  const donBest3  = donSorted.slice(0, 3);
+  const sum = (arr) => arr.reduce((acc, g) => acc + g.strokes, 0);
+  const billTotal = billBest.length === 3 ? sum(billBest) : null;
+  const donTotal = donBest.length === 3 ? sum(donBest) : null;
 
-  const billCum = billBest3.reduce((sum, g) => sum + parseFloat(g.strokes), 0);
-  const donCum  = donBest3.reduce((sum, g) => sum + parseFloat(g.strokes), 0);
+  // Golfer Win: who has the golfer with the lowest individual score
+  const allGolfers = [...billData.map(g => ({...g, player:'Bill'})), ...donData.map(g => ({...g, player:'Don'}))];
+  const validGolfers = allGolfers.filter(g => g.strokes != null);
+  validGolfers.sort((a, b) => a.strokes - b.strokes);
+  const golferWin = validGolfers.length ? validGolfers[0].player : '--';
 
-  const billHasWinner = billGolfers.some(g => parseInt(g.place, 10) === 1);
-  const donHasWinner  = donGolfers.some(g => parseInt(g.place, 10) === 1);
-
-  // Golfer Win: +$20 if Bill has winner, -$20 if Don has winner
-  const golferWin = billHasWinner ? 20 : donHasWinner ? -20 : 0;
-
-  // Best Cum Score: lower is better (golf scoring)
-  const bestCum = (billBest3.length === 3 && donBest3.length === 3)
-    ? (billCum < donCum ? 20 : donCum < billCum ? -20 : 0)
-    : 0;
-
-  // Differential: $2 per stroke
-  const strokeDiff = (billBest3.length === 3 && donBest3.length === 3)
-    ? Math.abs(billCum - donCum)
-    : 0;
-  const strokeMoney = strokeDiff * 2;
-  const strokeAdj = (billBest3.length === 3 && donBest3.length === 3)
-    ? (billCum < donCum ? strokeMoney : donCum < billCum ? -strokeMoney : 0)
-    : 0;
-
-  const billNet = golferWin + bestCum + strokeAdj;
+  // Best Cumulative Score
+  let bestCumWinner = '--';
+  let differential = 0;
+  if (billTotal != null && donTotal != null) {
+    bestCumWinner = billTotal <= donTotal ? 'Bill' : 'Don';
+    differential = Math.abs(billTotal - donTotal);
+  } else if (billTotal != null) {
+    bestCumWinner = 'Bill';
+  } else if (donTotal != null) {
+    bestCumWinner = 'Don';
+  }
 
   return {
-    billBest3, donBest3,
-    billCum, donCum,
-    billHasWinner, donHasWinner,
-    golferWin, bestCum,
-    strokeDiff, strokeMoney, strokeAdj,
-    billNet
+    golferWin,
+    bestCumWinner,
+    differential,
+    differentialPayout: differential * 2,
+    billTotal,
+    donTotal,
   };
 }

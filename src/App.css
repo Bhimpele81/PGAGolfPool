@@ -1,0 +1,43 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a1a1a; }
+
+.navbar { background: #1a3c5e; padding: 1rem 2rem; display: flex; gap: 2rem; align-items: center; }
+.navbar h1 { color: #f0c040; font-size: 1.4rem; margin-right: auto; }
+.navbar a { color: white; text-decoration: none; font-weight: 500; font-size: 1rem; }
+.navbar a:hover { color: #f0c040; }
+
+.page { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+h2 { font-size: 1.5rem; margin-bottom: 1rem; color: #1a3c5e; }
+
+.card { background: white; border-radius: 10px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+
+.leaderboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th { background: #1a3c5e; color: white; padding: 0.6rem 0.8rem; text-align: left; }
+td { padding: 0.5rem 0.8rem; border-bottom: 1px solid #e0e0e0; }
+tr:hover td { background: #f5f5f5; }
+.highlight td { background: #fffde7 !important; font-weight: bold; }
+
+.scoring-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem; }
+.score-box { background: #1a3c5e; color: white; border-radius: 8px; padding: 1rem; text-align: center; }
+.score-box .label { font-size: 0.8rem; opacity: 0.8; margin-bottom: 0.3rem; }
+.score-box .value { font-size: 1.4rem; font-weight: bold; color: #f0c040; }
+
+.btn { background: #f0c040; color: #1a1a1a; border: none; padding: 0.6rem 1.4rem; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem; }
+.btn:hover { background: #d4a800; }
+.btn-outline { background: transparent; border: 2px solid #1a3c5e; color: #1a3c5e; padding: 0.5rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: bold; }
+
+input, select { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 0.5rem; }
+label { font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.2rem; color: #444; }
+
+.draft-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.golfer-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+.golfer-row span { width: 24px; font-size: 0.85rem; color: #888; }
+
+.rules-section { margin-bottom: 1.5rem; }
+.rules-section h3 { color: #1a3c5e; margin-bottom: 0.5rem; }
+.rules-section ul { padding-left: 1.2rem; }
+.rules-section li { margin-bottom: 0.4rem; line-height: 1.5; }
+
+.status-bar { font-size: 0.8rem; color: #888; margin-top: 0.5rem; }
