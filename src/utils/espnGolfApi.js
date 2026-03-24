@@ -1,7 +1,18 @@
+const CACHE_KEY = 'golf_leaderboard_cache';
 const PROXIES = [
   (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
   (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
 ];
+
+function getCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
+  catch { return null; }
+}
+
+function setCache(data) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); }
+  catch {}
+}
 
 async function fetchWithProxy(apiUrl) {
   for (const proxy of PROXIES) {
@@ -37,15 +48,24 @@ export async function fetchLeaderboard() {
             : '--';
           return { name, strokes, place, thru };
         });
-        return results.sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
+        const sorted = results.sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
+        setCache(sorted); // save latest good data
+        return sorted;
       }
     }
   } catch (e) {
     console.error('ESPN API error:', e);
   }
 
-  // No active tournament — return demo field so app is always testable
-  console.warn('No live tournament. Using demo field.');
+  // Try cache first before falling back to demo
+  const cached = getCache();
+  if (cached && cached.length > 0) {
+    console.log('No live data — using cached leaderboard.');
+    return cached;
+  }
+
+  // Last resort: demo field
+  console.warn('No live or cached data. Using demo field.');
   return [
     { name: 'Scottie Scheffler',   strokes: -12, place: '1',   thru: 'F' },
     { name: 'Rory McIlroy',        strokes: -10, place: '2',   thru: 'F' },
