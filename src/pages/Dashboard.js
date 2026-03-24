@@ -5,7 +5,7 @@ import { fetchLeaderboard } from '../utils/espnGolfApi';
 
 const TOURNAMENT = '2026-masters';
 
-export default function Dashboard({ session, userName }) {
+export default function Dashboard({ userName }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading]         = useState(false);
@@ -14,23 +14,23 @@ export default function Dashboard({ session, userName }) {
   const [locked,    setLocked]        = useState(false);
   const [saving,    setSaving]        = useState(false);
 
-  // Load picks from Supabase
   const loadPicks = useCallback(async () => {
     const { data, error } = await supabase
       .from('picks')
       .select('player, golfers, locked')
       .eq('tournament', TOURNAMENT);
     if (error) { console.error(error); return; }
+    let isLocked = false;
     data.forEach(row => {
-      if (row.player === 'Bill') { setBillPicks(row.golfers || []); }
-      if (row.player === 'Don')  { setDonPicks(row.golfers  || []); }
-      if (row.locked) setLocked(true);
+      if (row.player === 'Bill') setBillPicks(row.golfers || []);
+      if (row.player === 'Don')  setDonPicks(row.golfers  || []);
+      if (row.locked) isLocked = true;
     });
+    setLocked(isLocked);
   }, []);
 
   useEffect(() => { loadPicks(); }, [loadPicks]);
 
-  // Save picks for the current user
   const savePicks = useCallback(async (player, golfers, isLocked) => {
     setSaving(true);
     await supabase.from('picks').upsert(
@@ -40,7 +40,6 @@ export default function Dashboard({ session, userName }) {
     setSaving(false);
   }, []);
 
-  // Leaderboard refresh
   const update = useCallback(async () => {
     setLoading(true);
     const data = await fetchLeaderboard();
@@ -56,10 +55,8 @@ export default function Dashboard({ session, userName }) {
     return () => clearInterval(interval);
   }, [update]);
 
-  // Only allow editing your own picks
-  const canEdit = !locked || false;
-  const isBill  = userName === 'Bill';
-  const isDon   = userName === 'Don';
+  const isBill = userName === 'Bill';
+  const isDon  = userName === 'Don';
 
   const togglePick = async (player, picks, setter, name) => {
     if (locked) return;
@@ -90,9 +87,9 @@ export default function Dashboard({ session, userName }) {
       return { name, ...(found || { strokes: null, place: null, thru: null }) };
     }).sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
 
-  const billData  = enrich(billPicks);
-  const donData   = enrich(donPicks);
-  const scoring   = computeScoring(billData, donData);
+  const billData   = enrich(billPicks);
+  const donData    = enrich(donPicks);
+  const scoring    = computeScoring(billData, donData);
   const best3Names = (data) =>
     [...data].filter(g => g.strokes != null)
       .sort((a, b) => a.strokes - b.strokes)
@@ -158,14 +155,13 @@ export default function Dashboard({ session, userName }) {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
         <div className="page-title" style={{marginBottom:0}}>2026 Masters Tournament</div>
         <span className="status-bar">
-          {saving ? '💾 Saving...' : loading ? '🔄 Fetching...' : lastUpdated ? `⏱ ${lastUpdated} • auto-refreshes every 60s` : ''}
+          {saving?'💾 Saving...':loading?'🔄 Fetching...':lastUpdated?`⏱ ${lastUpdated} • auto-refreshes every 60s`:''}
         </span>
       </div>
 
-      {/* Net Total Win banner */}
       {scoring && (
         <div style={{
-          background: scoring.netWinner==='Bill'?'rgba(30,58,95,0.9)':scoring.netWinner==='Don'?'rgba(95,30,30,0.9)':'rgba(30,49,72,0.9)',
+          background:scoring.netWinner==='Bill'?'rgba(30,58,95,0.9)':scoring.netWinner==='Don'?'rgba(95,30,30,0.9)':'rgba(30,49,72,0.9)',
           border:`1px solid ${scoring.netWinner==='Bill'?'#60a5fa':scoring.netWinner==='Don'?'#f87171':'var(--navy-border)'}`,
           borderRadius:'8px',padding:'10px 18px',marginBottom:'12px',
           display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:'8px'
@@ -174,7 +170,7 @@ export default function Dashboard({ session, userName }) {
             🏆 Net Leader: <span style={{color:scoring.netWinner==='Bill'?'#60a5fa':scoring.netWinner==='Don'?'#f87171':'#fbbf24'}}>
               {scoring.netWinner==='Tie'?'Tied!':`${scoring.netWinner} leads`}
             </span>
-            {scoring.netWinner!=='Tie' && <span style={{color:'#4ade80',marginLeft:'8px'}}>{fmtMoney(scoring.netAmount)}</span>}
+            {scoring.netWinner!=='Tie'&&<span style={{color:'#4ade80',marginLeft:'8px'}}>{fmtMoney(scoring.netAmount)}</span>}
           </div>
           <div style={{display:'flex',gap:'16px',fontSize:'12px',color:'var(--text-muted)',flexWrap:'wrap'}}>
             <span>🏅 Golfer Win: <strong style={{color:'#fff'}}>{scoring.golferWin}</strong></span>
@@ -184,13 +180,11 @@ export default function Dashboard({ session, userName }) {
         </div>
       )}
 
-      {/* Team panels */}
       <div className="team-panels">
         <TeamPanel player="Bill" rows={billPadded} best3={billBest3} picks={billPicks} accentColor="#60a5fa" headerBg="#1e3a5f" />
         <TeamPanel player="Don"  rows={donPadded}  best3={donBest3}  picks={donPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
       </div>
 
-      {/* Lock/Unlock */}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'12px'}}>
         {!locked
           ? <button className="btn btn-green" onClick={handleLock} disabled={billPicks.length===0&&donPicks.length===0}>🔒 Lock Picks</button>
@@ -198,7 +192,6 @@ export default function Dashboard({ session, userName }) {
         }
       </div>
 
-      {/* ESPN Leaderboard */}
       <div className="card">
         <div className="card-header">
           <span className="card-title">ESPN Leaderboard{!locked?' — Select Picks':''}</span>
@@ -232,24 +225,8 @@ export default function Dashboard({ session, userName }) {
                       </td>
                       <td>{fmtScore(g.strokes)}</td>
                       <td>{g.thru}</td>
-                      <td>
-                        {locked
-                          ? (billHas?<span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span>:'')
-                          : <input type="checkbox" checked={billHas}
-                              onChange={()=>isBill&&togglePick('Bill',billPicks,setBillPicks,g.name)}
-                              style={{cursor:isBill?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isBill?1:0.4}}
-                            />
-                        }
-                      </td>
-                      <td>
-                        {locked
-                          ? (donHas?<span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span>:'')
-                          : <input type="checkbox" checked={donHas}
-                              onChange={()=>isDon&&togglePick('Don',donPicks,setDonPicks,g.name)}
-                              style={{cursor:isDon?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isDon?1:0.4}}
-                            />
-                        }
-                      </td>
+                      <td>{locked?(billHas?<span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span>:''):<input type="checkbox" checked={billHas} onChange={()=>isBill&&togglePick('Bill',billPicks,setBillPicks,g.name)} style={{cursor:isBill?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isBill?1:0.4}}/>}</td>
+                      <td>{locked?(donHas?<span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span>:''):<input type="checkbox" checked={donHas} onChange={()=>isDon&&togglePick('Don',donPicks,setDonPicks,g.name)} style={{cursor:isDon?'pointer':'not-allowed',width:'16px',height:'16px',opacity:isDon?1:0.4}}/>}</td>
                     </tr>
                   );
                 })}

@@ -1,87 +1,46 @@
-import React, { useState } from 'react';
-import { supabase } from '../utils/supabase';
+import React from 'react';
 
-export default function Login() {
-  const [email,   setEmail]   = useState('');
-  const [sent,    setSent]    = useState(false);
-  const [error,   setError]   = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: true }
-    });
-    if (error) setError(error.message);
-    else setSent(true);
-    setLoading(false);
-  };
-
+export default function Login({ onSelect }) {
   return (
     <div style={{
       minHeight:'100vh', display:'flex', alignItems:'center',
-      justifyContent:'center', background:'var(--navy)'
+      justifyContent:'center', background:'var(--navy)', padding:'24px'
     }}>
-      <div className="card" style={{width:'100%', maxWidth:'380px', margin:'24px'}}>
-        <div className="card-header" style={{background:'#1e3a5f', borderRadius:'8px 8px 0 0', justifyContent:'center'}}>
-          <span className="card-title" style={{color:'#fff', fontSize:'16px', textTransform:'none', letterSpacing:0}}>
-            ⛳ PGA Golf Major Pool
-          </span>
+      <div style={{width:'100%', maxWidth:'400px'}}>
+        <div style={{textAlign:'center', marginBottom:'32px'}}>
+          <div style={{fontSize:'48px', marginBottom:'12px'}}>⛳</div>
+          <div style={{fontSize:'22px', fontWeight:800, color:'#fff', marginBottom:'6px'}}>PGA Golf Major Pool</div>
+          <div style={{fontSize:'14px', color:'var(--text-muted)'}}>2026 Masters Tournament — Bill vs Don</div>
         </div>
-        <div className="card-body">
-          {sent ? (
-            <div style={{textAlign:'center', padding:'12px 0'}}>
-              <div style={{fontSize:'40px', marginBottom:'12px'}}>📧</div>
-              <p style={{color:'var(--text)', fontWeight:600, marginBottom:'8px'}}>Check your email!</p>
-              <p style={{color:'var(--text-muted)', fontSize:'13px'}}>
-                We sent a magic link to <strong style={{color:'var(--text)'}}>{email}</strong>.<br/>
-                Click the link to sign in — no password needed.
-              </p>
-              <button
-                className="btn btn-secondary"
-                style={{marginTop:'16px', width:'100%', justifyContent:'center'}}
-                onClick={() => { setSent(false); setEmail(''); }}
-              >
-                Use a different email
-              </button>
-            </div>
-          ) : (
-            <>
-              <p style={{color:'var(--text-muted)', fontSize:'13px', marginBottom:'20px', textAlign:'center'}}>
-                Enter your email and we’ll send you a magic link — no password needed.
-              </p>
-              <form onSubmit={handleLogin}>
-                <div style={{marginBottom:'16px'}}>
-                  <label className="form-label">Email</label>
-                  <input
-                    className="form-input"
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    required
-                    autoFocus
-                  />
-                </div>
-                {error && (
-                  <div style={{color:'#f87171', fontSize:'13px', marginBottom:'12px', textAlign:'center'}}>
-                    {error}
-                  </div>
-                )}
-                <button
-                  className="btn btn-green"
-                  type="submit"
-                  disabled={loading}
-                  style={{width:'100%', justifyContent:'center'}}
-                >
-                  {loading ? 'Sending...' : '🚀 Send Magic Link'}
-                </button>
-              </form>
-            </>
-          )}
+        <div style={{display:'flex', gap:'16px'}}>
+          <button
+            onClick={() => onSelect('Bill')}
+            style={{
+              flex:1, padding:'24px 16px', background:'#1e3a5f',
+              border:'2px solid #60a5fa', borderRadius:'12px',
+              cursor:'pointer', textAlign:'center', transition:'all 0.15s'
+            }}
+            onMouseOver={e => e.currentTarget.style.background='#254d7a'}
+            onMouseOut={e  => e.currentTarget.style.background='#1e3a5f'}
+          >
+            <div style={{fontSize:'36px', marginBottom:'8px'}}>👤</div>
+            <div style={{fontSize:'20px', fontWeight:700, color:'#60a5fa'}}>Bill</div>
+            <div style={{fontSize:'12px', color:'var(--text-muted)', marginTop:'4px'}}>Tap to enter as Bill</div>
+          </button>
+          <button
+            onClick={() => onSelect('Don')}
+            style={{
+              flex:1, padding:'24px 16px', background:'#5f1e1e',
+              border:'2px solid #f87171', borderRadius:'12px',
+              cursor:'pointer', textAlign:'center', transition:'all 0.15s'
+            }}
+            onMouseOver={e => e.currentTarget.style.background='#7a2424'}
+            onMouseOut={e  => e.currentTarget.style.background='#5f1e1e'}
+          >
+            <div style={{fontSize:'36px', marginBottom:'8px'}}>👤</div>
+            <div style={{fontSize:'20px', fontWeight:700, color:'#f87171'}}>Don</div>
+            <div style={{fontSize:'12px', color:'var(--text-muted)', marginTop:'4px'}}>Tap to enter as Don</div>
+          </button>
         </div>
       </div>
     </div>
