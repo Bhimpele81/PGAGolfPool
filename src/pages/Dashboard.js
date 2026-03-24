@@ -70,33 +70,45 @@ export default function Dashboard() {
   const donBest3  = best3Names(donData);
   const fmtScore  = (s) => s == null ? '--' : s > 0 ? '+' + s : s === 0 ? 'E' : String(s);
 
-  const TeamPanel = ({ player, data, best3, picks, accentColor, headerBg }) => {
-    const totalStrokes = data.filter(g => best3.includes(g.name) && g.strokes != null)
+  // Pad whichever team has fewer picks so both cards have equal rows
+  const maxLen = Math.max(billData.length, donData.length, 1);
+  const pad = (arr) => {
+    const blanks = Array(Math.max(0, maxLen - arr.length)).fill(null);
+    return [...arr, ...blanks];
+  };
+  const billPadded = pad(billData);
+  const donPadded  = pad(donData);
+
+  const TeamPanel = ({ player, rows, best3, picks, accentColor, headerBg }) => {
+    const totalStrokes = rows.filter(g => g && best3.includes(g.name) && g.strokes != null)
       .reduce((sum, g) => sum + g.strokes, 0);
+    const hasScores = rows.some(g => g && g.strokes != null);
     return (
-      <div className="card" style={{flex:1,minWidth:'280px'}}>
+      <div className="card" style={{flex:1,minWidth:'280px',display:'flex',flexDirection:'column',marginBottom:0}}>
         <div className="card-header" style={{background: headerBg, borderRadius:'8px 8px 0 0'}}>
           <span className="card-title" style={{color:'#fff',fontSize:'16px',fontWeight:700}}>{player}</span>
           <span style={{marginLeft:'auto',color:'rgba(255,255,255,0.8)',fontSize:'13px'}}>{picks.length}/8 picks</span>
         </div>
-        <table className="data-table">
+        <table className="data-table" style={{flex:1}}>
           <thead>
-            <tr><th>Golfer</th><th>Strokes</th><th>Place</th><th>Thru</th></tr>
+            <tr><th style={{textAlign:'left'}}>Golfer</th><th>Strokes</th><th>Place</th><th>Thru</th></tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
-              <tr><td colSpan={4} style={{color:'var(--text-muted)',padding:'12px',textAlign:'center'}}>No picks yet — select below</td></tr>
-            ) : data.map((g, i) => (
-              <tr key={i} style={best3.includes(g.name) ? {background:'rgba(34,197,94,0.10)',fontWeight:600} : {}}>
-                <td>{best3.includes(g.name) ? '⭐ ' : ''}{g.name}</td>
-                <td style={{color: g.strokes < 0 ? '#4ade80' : g.strokes > 0 ? '#f87171' : 'inherit'}}>{fmtScore(g.strokes)}</td>
-                <td>{g.place ?? '--'}</td>
-                <td>{g.thru ?? '--'}</td>
-              </tr>
-            ))}
+            {rows.map((g, i) =>
+              g ? (
+                <tr key={i} style={best3.includes(g.name) ? {background:'rgba(34,197,94,0.10)',fontWeight:600} : {}}>
+                  <td style={{textAlign:'left'}}>{best3.includes(g.name) ? '⭐ ' : ''}{g.name}</td>
+                  <td style={{color: g.strokes < 0 ? '#4ade80' : g.strokes > 0 ? '#f87171' : 'inherit'}}>{fmtScore(g.strokes)}</td>
+                  <td>{g.place ?? '--'}</td>
+                  <td>{g.thru ?? '--'}</td>
+                </tr>
+              ) : (
+                <tr key={i}><td style={{textAlign:'left',color:'var(--text-dim)'}}>--</td><td></td><td></td><td></td></tr>
+              )
+            )}
           </tbody>
         </table>
-        {data.length > 0 && (
+        {hasScores && (
           <div style={{padding:'8px 16px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',fontSize:'13px'}}>
             <span style={{color:'var(--text-muted)'}}>Best 3 Score:</span>
             <span style={{fontWeight:700,color:accentColor}}>{fmtScore(totalStrokes)}</span>
@@ -116,7 +128,7 @@ export default function Dashboard() {
         </span>
       </div>
 
-      {/* Scoring Summary — always visible once there are picks */}
+      {/* Running Totals — always visible once picks exist */}
       {scoring && (
         <div className="card" style={{marginBottom:'16px'}}>
           <div className="card-header">
@@ -125,35 +137,20 @@ export default function Dashboard() {
           </div>
           <div className="card-body">
             <div className="scoring-summary">
-              <div className="score-box">
-                <div className="label" style={{color:'#60a5fa'}}>Bill Best 3</div>
-                <div className="value">{fmtScore(scoring.billTotal)}</div>
-              </div>
-              <div className="score-box">
-                <div className="label" style={{color:'#f87171'}}>Don Best 3</div>
-                <div className="value">{fmtScore(scoring.donTotal)}</div>
-              </div>
-              <div className="score-box">
-                <div className="label">🏆 Lowest Golfer</div>
-                <div className="value">{scoring.golferWin}</div>
-              </div>
-              <div className="score-box">
-                <div className="label">📊 Best Cum. Score</div>
-                <div className="value">{scoring.bestCumWinner}</div>
-              </div>
-              <div className="score-box">
-                <div className="label">💰 Differential</div>
-                <div className="value">{scoring.differential} strokes (${scoring.differentialPayout})</div>
-              </div>
+              <div className="score-box"><div className="label" style={{color:'#60a5fa'}}>Bill Best 3</div><div className="value">{fmtScore(scoring.billTotal)}</div></div>
+              <div className="score-box"><div className="label" style={{color:'#f87171'}}>Don Best 3</div><div className="value">{fmtScore(scoring.donTotal)}</div></div>
+              <div className="score-box"><div className="label">🏆 Lowest Golfer</div><div className="value">{scoring.golferWin}</div></div>
+              <div className="score-box"><div className="label">📊 Best Cum. Score</div><div className="value">{scoring.bestCumWinner}</div></div>
+              <div className="score-box"><div className="label">💰 Differential</div><div className="value" style={{fontSize:'16px'}}>{scoring.differential} strokes (${scoring.differentialPayout})</div></div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Bill (blue, left) and Don (red, right) */}
-      <div style={{display:'flex',gap:'16px',marginBottom:'16px',flexWrap:'wrap'}}>
-        <TeamPanel player="Bill" data={billData} best3={billBest3} picks={billPicks} accentColor="#60a5fa" headerBg="#1e3a5f" />
-        <TeamPanel player="Don"  data={donData}  best3={donBest3}  picks={donPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
+      {/* Bill and Don panels — equal rows */}
+      <div className="team-panels">
+        <TeamPanel player="Bill" rows={billPadded} best3={billBest3} picks={billPicks} accentColor="#60a5fa" headerBg="#1e3a5f" />
+        <TeamPanel player="Don"  rows={donPadded}  best3={donBest3}  picks={donPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
       </div>
 
       {/* Lock/Unlock — always visible */}
@@ -179,12 +176,12 @@ export default function Dashboard() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Place</th>
-                  <th>Golfer</th>
+                  <th style={{textAlign:'left'}}>Place</th>
+                  <th style={{textAlign:'left'}}>Golfer</th>
                   <th>Strokes</th>
                   <th>Thru</th>
-                  <th style={{textAlign:'center',color:'#60a5fa'}}>Bill</th>
-                  <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
+                  <th>Bill</th>
+                  <th>Don</th>
                 </tr>
               </thead>
               <tbody>
@@ -196,30 +193,24 @@ export default function Dashboard() {
                   const highlight  = isBillBest || isDonBest;
                   return (
                     <tr key={i} style={highlight ? {background:'rgba(34,197,94,0.07)'} : billHas||donHas ? {background:'rgba(255,255,255,0.03)'} : {}}>
-                      <td>{g.place}</td>
-                      <td>
+                      <td style={{textAlign:'left'}}>{g.place}</td>
+                      <td style={{textAlign:'left',fontWeight: billHas||donHas ? 600 : 400}}>
                         {g.name}
                         {isBillBest && <span style={{marginLeft:'6px',color:'#60a5fa',fontSize:'11px',fontWeight:700}}>Bill⭐</span>}
                         {isDonBest  && <span style={{marginLeft:'6px',color:'#f87171',fontSize:'11px',fontWeight:700}}>Don⭐</span>}
                       </td>
                       <td>{fmtScore(g.strokes)}</td>
                       <td>{g.thru}</td>
-                      <td style={{textAlign:'center'}}>
+                      <td>
                         {locked
                           ? (billHas ? <span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
-                          : <input type="checkbox" checked={billHas}
-                              onChange={() => togglePick(setBillPicks, billPicks, g.name)}
-                              style={{cursor:'pointer',width:'16px',height:'16px'}}
-                            />
+                          : <input type="checkbox" checked={billHas} onChange={() => togglePick(setBillPicks, billPicks, g.name)} style={{cursor:'pointer',width:'16px',height:'16px'}} />
                         }
                       </td>
-                      <td style={{textAlign:'center'}}>
+                      <td>
                         {locked
                           ? (donHas ? <span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
-                          : <input type="checkbox" checked={donHas}
-                              onChange={() => togglePick(setDonPicks, donPicks, g.name)}
-                              style={{cursor:'pointer',width:'16px',height:'16px'}}
-                            />
+                          : <input type="checkbox" checked={donHas} onChange={() => togglePick(setDonPicks, donPicks, g.name)} style={{cursor:'pointer',width:'16px',height:'16px'}} />
                         }
                       </td>
                     </tr>
