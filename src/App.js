@@ -1,34 +1,23 @@
 import React, { useState } from 'react';
 import './App.css';
 import Dashboard from './pages/Dashboard';
-import TournamentEntry from './pages/TournamentEntry';
 import Rules from './pages/Rules';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'entry',     label: 'Leaderboard' },
   { id: 'rules',     label: 'Rules' },
 ];
 
 export default function App() {
   const [tab, setTab] = useState('dashboard');
 
-  const renderPage = () => {
-    switch(tab) {
-      case 'dashboard': return <Dashboard />;
-      case 'entry':     return <TournamentEntry />;
-      case 'rules':     return <Rules />;
-      default:          return <Dashboard />;
-    }
-  };
-
   return (
     <div>
       <header className="app-header">
         <div className="header-inner">
           <div className="header-brand">
-            <span className="flag-icon">⛳</span>
-            <span className="brand-title">PGA Golf Pool</span>
+            <img src="/pga-logo.png" alt="PGA Tour" style={{height:'40px',objectFit:'contain'}} onError={e => e.target.style.display='none'} />
+            <span className="brand-title">Golf Pool</span>
             <span className="brand-sub">Bill vs Don</span>
           </div>
           <nav className="header-nav">
@@ -43,7 +32,7 @@ export default function App() {
         </div>
       </header>
       <main className="app-main">
-        {renderPage()}
+        {tab === 'dashboard' ? <Dashboard /> : <Rules />}
       </main>
     </div>
   );
