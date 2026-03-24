@@ -70,7 +70,7 @@ export default function Dashboard() {
   const donBest3  = best3Names(donData);
   const fmtScore  = (s) => s == null ? '--' : s > 0 ? '+' + s : s === 0 ? 'E' : String(s);
 
-  const TeamPanel = ({ player, data, best3, picks, color, headerBg }) => {
+  const TeamPanel = ({ player, data, best3, picks, accentColor, headerBg }) => {
     const totalStrokes = data.filter(g => best3.includes(g.name) && g.strokes != null)
       .reduce((sum, g) => sum + g.strokes, 0);
     return (
@@ -106,7 +106,7 @@ export default function Dashboard() {
         {data.length > 0 && (
           <div style={{padding:'8px 16px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',fontSize:'13px'}}>
             <span style={{color:'var(--text-muted)'}}>Best 3 Score:</span>
-            <span style={{fontWeight:700,color: color}}>{fmtScore(totalStrokes)}</span>
+            <span style={{fontWeight:700, color: accentColor}}>{fmtScore(totalStrokes)}</span>
           </div>
         )}
       </div>
@@ -137,13 +137,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Two side-by-side team panels */}
+      {/* Bill (blue, left) and Don (red, right) */}
       <div style={{display:'flex',gap:'16px',marginBottom:'16px',flexWrap:'wrap'}}>
-        <TeamPanel player="Don"  data={donData}  best3={donBest3}  picks={donPicks}  color="#f87171" headerBg="#1e3a5f" />
-        <TeamPanel player="Bill" data={billData} best3={billBest3} picks={billPicks} color="#60a5fa" headerBg="#1a4731" />
+        <TeamPanel player="Bill" data={billData} best3={billBest3} picks={billPicks} accentColor="#60a5fa" headerBg="#1e3a5f" />
+        <TeamPanel player="Don"  data={donData}  best3={donBest3}  picks={donPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
       </div>
 
-      {/* Lock/Unlock button */}
+      {/* Lock/Unlock — always visible */}
       <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'16px'}}>
         {!locked
           ? <button className="btn btn-green" onClick={handleLock} disabled={billPicks.length===0 && donPicks.length===0}>🔒 Lock Picks</button>
@@ -151,7 +151,7 @@ export default function Dashboard() {
         }
       </div>
 
-      {/* ESPN Leaderboard for selecting */}
+      {/* ESPN Leaderboard — shown when unlocked */}
       {!locked && (
         <div className="card">
           <div className="card-header">
@@ -171,8 +171,8 @@ export default function Dashboard() {
                     <th>Golfer</th>
                     <th>Strokes</th>
                     <th>Thru</th>
-                    <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
                     <th style={{textAlign:'center',color:'#60a5fa'}}>Bill</th>
+                    <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -186,14 +186,14 @@ export default function Dashboard() {
                         <td>{fmtScore(g.strokes)}</td>
                         <td>{g.thru}</td>
                         <td style={{textAlign:'center'}}>
-                          <input type="checkbox" checked={donHas}
-                            onChange={() => togglePick(setDonPicks, donPicks, g.name)}
+                          <input type="checkbox" checked={billHas}
+                            onChange={() => togglePick(setBillPicks, billPicks, g.name)}
                             style={{cursor:'pointer',width:'16px',height:'16px'}}
                           />
                         </td>
                         <td style={{textAlign:'center'}}>
-                          <input type="checkbox" checked={billHas}
-                            onChange={() => togglePick(setBillPicks, billPicks, g.name)}
+                          <input type="checkbox" checked={donHas}
+                            onChange={() => togglePick(setDonPicks, donPicks, g.name)}
                             style={{cursor:'pointer',width:'16px',height:'16px'}}
                           />
                         </td>
