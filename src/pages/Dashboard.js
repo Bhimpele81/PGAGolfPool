@@ -7,23 +7,23 @@ export default function Dashboard() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [billPicks, setBillPicks] = useState(Array(8).fill(''));
-  const [donPicks, setDonPicks]   = useState(Array(8).fill(''));
+  const [billPicks, setBillPicks] = useState([]);
+  const [donPicks, setDonPicks]   = useState([]);
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     const entries = getEntries();
-    if (entries.bill?.length) {
-      setBillPicks([...entries.bill, ...Array(8).fill('')].slice(0,8));
-      setDonPicks([...entries.don,  ...Array(8).fill('')].slice(0,8));
-      setLocked(entries.locked || false);
-    }
+    setBillPicks(entries.bill || []);
+    setDonPicks(entries.don  || []);
+    setLocked(entries.locked || false);
   }, []);
 
   const update = useCallback(async () => {
     setLoading(true);
     const data = await fetchLeaderboard();
-    setLeaderboard(data);
+    // Always sort lowest score (best) to top
+    const sorted = [...data].sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
+    setLeaderboard(sorted);
     setLastUpdated(new Date().toLocaleTimeString());
     setLoading(false);
   }, []);
@@ -35,17 +35,25 @@ export default function Dashboard() {
   }, [update]);
 
   const handleLock = () => {
-    saveEntries({ bill: billPicks.filter(Boolean), don: donPicks.filter(Boolean), locked: true });
+    saveEntries({ bill: billPicks, don: donPicks, locked: true });
     setLocked(true);
   };
 
   const handleUnlock = () => {
-    saveEntries({ bill: billPicks.filter(Boolean), don: donPicks.filter(Boolean), locked: false });
+    saveEntries({ bill: billPicks, don: donPicks, locked: false });
     setLocked(false);
   };
 
+  const togglePick = (setter, picks, name, max) => {
+    if (picks.includes(name)) {
+      setter(picks.filter(n => n !== name));
+    } else if (picks.length < max) {
+      setter([...picks, name]);
+    }
+  };
+
   const enrich = (picks) =>
-    picks.filter(Boolean).map(name => {
+    picks.map(name => {
       const found = leaderboard.find(g => g.name === name);
       return { name, ...(found || { strokes: null, place: null, thru: null }) };
     });
@@ -56,31 +64,26 @@ export default function Dashboard() {
 
   const best3Names = (data) =>
     [...data].filter(g => g.strokes != null)
-      .sort((a,b) => a.strokes - b.strokes)
-      .slice(0,3).map(g => g.name);
-
-  const fmtScore = (s) => s == null ? '--' : s > 0 ? '+'+s : s === 0 ? 'E' : String(s);
+      .sort((a, b) => a.strokes - b.strokes)
+      .slice(0, 3).map(g => g.name);
 
   const billBest3 = best3Names(billData);
   const donBest3  = best3Names(donData);
-
-  // All picked names to grey out in dropdowns
-  const billChosen = billPicks.filter(Boolean);
-  const donChosen  = donPicks.filter(Boolean);
+  const fmtScore  = (s) => s == null ? '--' : s > 0 ? '+' + s : s === 0 ? 'E' : String(s);
 
   return (
     <div>
-      {/* Status */}
+      {/* Header row */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
-        <div className="page-title" style={{marginBottom:0}}>⛳ PGA Golf Pool</div>
+        <div className="page-title" style={{marginBottom:0}}>⛳ Live Leaderboard</div>
         <span className="status-bar">
-          {loading ? '🔄 Fetching scores...' : lastUpdated ? `⏱ Updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
+          {loading ? '🔄 Fetching...' : lastUpdated ? `⏱ Updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
         </span>
       </div>
 
-      {/* Scoring Summary */}
+      {/* Scoring Summary — only shown when locked */}
       {scoring && locked && (
-        <div className="card" style={{marginBottom:'16px'}}>
+        <div className="card">
           <div className="card-header"><span className="card-title">Scoring Summary</span></div>
           <div className="card-body">
             <div className="scoring-summary">
@@ -92,17 +95,23 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Main leaderboard table with pick columns */}
+      {/* Single unified table */}
       <div className="card">
-        <div className="card-header" style={{display:'flex',alignItems:'center',gap:'12px'}}>
-          <span className="card-title">ESPN Leaderboard</span>
-          <span style={{marginLeft:'auto',display:'flex',gap:'8px',alignItems:'center'}}>
+        <div className="card-header">
+          <span className="card-title">
+            {locked
+              ? `Picks Locked — Bill (${billPicks.length}/8) • Don (${donPicks.length}/8)`
+              : `Select Picks — Bill (${billPicks.length}/8) • Don (${donPicks.length}/8)`
+            }
+          </span>
+          <span style={{marginLeft:'auto'}}>
             {!locked
-              ? <button className="btn btn-green btn-sm" onClick={handleLock} disabled={!billChosen.length && !donChosen.length}>🔒 Lock Picks</button>
+              ? <button className="btn btn-green btn-sm" onClick={handleLock} disabled={billPicks.length === 0 && donPicks.length === 0}>🔒 Lock Picks</button>
               : <button className="btn btn-secondary btn-sm" onClick={handleUnlock}>🔓 Edit Picks</button>
             }
           </span>
         </div>
+
         {leaderboard.length === 0 ? (
           <div className="card-body" style={{color:'var(--text-muted)'}}>
             {loading ? 'Loading leaderboard...' : 'No tournament in progress or ESPN data unavailable.'}
@@ -122,47 +131,35 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {leaderboard.map((g, i) => {
-                  const billHas = billChosen.includes(g.name);
-                  const donHas  = donChosen.includes(g.name);
-                  const isBillBest = billBest3.includes(g.name);
-                  const isDonBest  = donBest3.includes(g.name);
-                  const rowHighlight = locked && (isBillBest || isDonBest) ? {background:'rgba(34,197,94,0.07)'} : {};
+                  const billHas    = billPicks.includes(g.name);
+                  const donHas     = donPicks.includes(g.name);
+                  const isBillBest = locked && billBest3.includes(g.name);
+                  const isDonBest  = locked && donBest3.includes(g.name);
+                  const highlight  = isBillBest || isDonBest;
                   return (
-                    <tr key={i} style={rowHighlight}>
+                    <tr key={i} style={highlight ? {background:'rgba(34,197,94,0.08)'} : {}}>
                       <td>{g.place}</td>
                       <td>
                         {g.name}
-                        {locked && isBillBest && <span style={{marginLeft:'6px',color:'#60a5fa',fontSize:'11px'}}>Bill⭐</span>}
-                        {locked && isDonBest  && <span style={{marginLeft:'6px',color:'#f87171',fontSize:'11px'}}>Don⭐</span>}
+                        {isBillBest && <span style={{marginLeft:'6px',color:'#60a5fa',fontSize:'11px',fontWeight:700}}>Bill ⭐</span>}
+                        {isDonBest  && <span style={{marginLeft:'6px',color:'#f87171',fontSize:'11px',fontWeight:700}}>Don ⭐</span>}
                       </td>
-                      <td>{fmtScore(g.strokes)}</td>
+                      <td style={{fontWeight: highlight ? 700 : 400}}>{fmtScore(g.strokes)}</td>
                       <td>{g.thru}</td>
                       <td style={{textAlign:'center'}}>
                         {locked
-                          ? (billHas ? <span style={{color:'#60a5fa',fontWeight:700}}>✓</span> : '')
+                          ? (billHas ? <span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
                           : <input type="checkbox" checked={billHas}
-                              onChange={() => {
-                                if (billHas) {
-                                  setBillPicks(prev => { const c=[...prev]; c[c.indexOf(g.name)]=''; return c; });
-                                } else if (billChosen.length < 8) {
-                                  setBillPicks(prev => { const c=[...prev]; const idx=c.indexOf(''); if(idx>-1) c[idx]=g.name; return c; });
-                                }
-                              }}
+                              onChange={() => togglePick(setBillPicks, billPicks, g.name, 8)}
                               style={{cursor:'pointer',width:'16px',height:'16px'}}
                             />
                         }
                       </td>
                       <td style={{textAlign:'center'}}>
                         {locked
-                          ? (donHas ? <span style={{color:'#f87171',fontWeight:700}}>✓</span> : '')
+                          ? (donHas ? <span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
                           : <input type="checkbox" checked={donHas}
-                              onChange={() => {
-                                if (donHas) {
-                                  setDonPicks(prev => { const c=[...prev]; c[c.indexOf(g.name)]=''; return c; });
-                                } else if (donChosen.length < 8) {
-                                  setDonPicks(prev => { const c=[...prev]; const idx=c.indexOf(''); if(idx>-1) c[idx]=g.name; return c; });
-                                }
-                              }}
+                              onChange={() => togglePick(setDonPicks, donPicks, g.name, 8)}
                               style={{cursor:'pointer',width:'16px',height:'16px'}}
                             />
                         }
