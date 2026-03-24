@@ -43,10 +43,10 @@ export default function Dashboard() {
     setLocked(false);
   };
 
-  const togglePick = (setter, picks, name, max) => {
+  const togglePick = (setter, picks, name) => {
     if (picks.includes(name)) {
       setter(picks.filter(n => n !== name));
-    } else if (picks.length < max) {
+    } else if (picks.length < 8) {
       setter([...picks, name]);
     }
   };
@@ -55,7 +55,7 @@ export default function Dashboard() {
     picks.map(name => {
       const found = leaderboard.find(g => g.name === name);
       return { name, ...(found || { strokes: null, place: null, thru: null }) };
-    });
+    }).sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
 
   const billData = enrich(billPicks);
   const donData  = enrich(donPicks);
@@ -70,19 +70,62 @@ export default function Dashboard() {
   const donBest3  = best3Names(donData);
   const fmtScore  = (s) => s == null ? '--' : s > 0 ? '+' + s : s === 0 ? 'E' : String(s);
 
+  const TeamPanel = ({ player, data, best3, picks, color, headerBg }) => {
+    const totalStrokes = data.filter(g => best3.includes(g.name) && g.strokes != null)
+      .reduce((sum, g) => sum + g.strokes, 0);
+    return (
+      <div className="card" style={{flex:1}}>
+        <div className="card-header" style={{background: headerBg, borderRadius:'8px 8px 0 0'}}>
+          <span className="card-title" style={{color:'#fff',fontSize:'16px',fontWeight:700}}>{player}</span>
+          <span style={{marginLeft:'auto',color:'rgba(255,255,255,0.8)',fontSize:'13px'}}>{picks.length}/8 picks</span>
+        </div>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Golfer</th>
+              <th>Strokes</th>
+              <th>Place</th>
+              <th>Thru</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.length === 0 ? (
+              <tr><td colSpan={4} style={{color:'var(--text-muted)',padding:'12px',textAlign:'center'}}>No picks yet — select below</td></tr>
+            ) : data.map((g, i) => (
+              <tr key={i} style={best3.includes(g.name) ? {background:'rgba(34,197,94,0.10)',fontWeight:600} : {}}>
+                <td>{best3.includes(g.name) ? '⭐ ' : ''}{g.name}</td>
+                <td style={{color: g.strokes < 0 ? '#4ade80' : g.strokes > 0 ? '#f87171' : 'inherit'}}>
+                  {fmtScore(g.strokes)}
+                </td>
+                <td>{g.place ?? '--'}</td>
+                <td>{g.thru ?? '--'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {data.length > 0 && (
+          <div style={{padding:'8px 16px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',fontSize:'13px'}}>
+            <span style={{color:'var(--text-muted)'}}>Best 3 Score:</span>
+            <span style={{fontWeight:700,color: color}}>{fmtScore(totalStrokes)}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div>
-      {/* Header row */}
+      {/* Page header */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
         <div className="page-title" style={{marginBottom:0}}>2026 Masters Tournament</div>
         <span className="status-bar">
-          {loading ? '🔄 Fetching...' : lastUpdated ? `⏱ Updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
+          {loading ? '🔄 Fetching...' : lastUpdated ? `⏱ ${lastUpdated} • auto-refreshes every 60s` : ''}
         </span>
       </div>
 
-      {/* Scoring Summary — only shown when locked */}
+      {/* Scoring Summary */}
       {scoring && locked && (
-        <div className="card">
+        <div className="card" style={{marginBottom:'16px'}}>
           <div className="card-header"><span className="card-title">Scoring Summary</span></div>
           <div className="card-body">
             <div className="scoring-summary">
@@ -94,83 +137,75 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Single unified table */}
-      <div className="card">
-        <div className="card-header">
-          <span className="card-title">
-            {locked
-              ? `Picks Locked — Bill (${billPicks.length}/8) • Don (${donPicks.length}/8)`
-              : `Select Picks — Bill (${billPicks.length}/8) • Don (${donPicks.length}/8)`
-            }
-          </span>
-          <span style={{marginLeft:'auto'}}>
-            {!locked
-              ? <button className="btn btn-green btn-sm" onClick={handleLock} disabled={billPicks.length === 0 && donPicks.length === 0}>🔒 Lock Picks</button>
-              : <button className="btn btn-secondary btn-sm" onClick={handleUnlock}>🔓 Edit Picks</button>
-            }
-          </span>
-        </div>
-
-        {leaderboard.length === 0 ? (
-          <div className="card-body" style={{color:'var(--text-muted)'}}>
-            {loading ? 'Loading leaderboard...' : 'No tournament in progress or ESPN data unavailable.'}
-          </div>
-        ) : (
-          <div style={{overflowX:'auto'}}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Place</th>
-                  <th>Golfer</th>
-                  <th>Strokes</th>
-                  <th>Thru</th>
-                  <th style={{textAlign:'center',color:'#60a5fa'}}>Bill</th>
-                  <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.map((g, i) => {
-                  const billHas    = billPicks.includes(g.name);
-                  const donHas     = donPicks.includes(g.name);
-                  const isBillBest = locked && billBest3.includes(g.name);
-                  const isDonBest  = locked && donBest3.includes(g.name);
-                  const highlight  = isBillBest || isDonBest;
-                  return (
-                    <tr key={i} style={highlight ? {background:'rgba(34,197,94,0.08)'} : {}}>
-                      <td>{g.place}</td>
-                      <td>
-                        {g.name}
-                        {isBillBest && <span style={{marginLeft:'6px',color:'#60a5fa',fontSize:'11px',fontWeight:700}}>Bill ⭐</span>}
-                        {isDonBest  && <span style={{marginLeft:'6px',color:'#f87171',fontSize:'11px',fontWeight:700}}>Don ⭐</span>}
-                      </td>
-                      <td style={{fontWeight: highlight ? 700 : 400}}>{fmtScore(g.strokes)}</td>
-                      <td>{g.thru}</td>
-                      <td style={{textAlign:'center'}}>
-                        {locked
-                          ? (billHas ? <span style={{color:'#60a5fa',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
-                          : <input type="checkbox" checked={billHas}
-                              onChange={() => togglePick(setBillPicks, billPicks, g.name, 8)}
-                              style={{cursor:'pointer',width:'16px',height:'16px'}}
-                            />
-                        }
-                      </td>
-                      <td style={{textAlign:'center'}}>
-                        {locked
-                          ? (donHas ? <span style={{color:'#f87171',fontWeight:700,fontSize:'16px'}}>✓</span> : '')
-                          : <input type="checkbox" checked={donHas}
-                              onChange={() => togglePick(setDonPicks, donPicks, g.name, 8)}
-                              style={{cursor:'pointer',width:'16px',height:'16px'}}
-                            />
-                        }
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Two side-by-side team panels */}
+      <div style={{display:'flex',gap:'16px',marginBottom:'16px',flexWrap:'wrap'}}>
+        <TeamPanel player="Don"  data={donData}  best3={donBest3}  picks={donPicks}  color="#f87171" headerBg="#1e3a5f" />
+        <TeamPanel player="Bill" data={billData} best3={billBest3} picks={billPicks} color="#60a5fa" headerBg="#1a4731" />
       </div>
+
+      {/* Lock/Unlock button */}
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'16px'}}>
+        {!locked
+          ? <button className="btn btn-green" onClick={handleLock} disabled={billPicks.length===0 && donPicks.length===0}>🔒 Lock Picks</button>
+          : <button className="btn btn-secondary" onClick={handleUnlock}>🔓 Edit Picks</button>
+        }
+      </div>
+
+      {/* ESPN Leaderboard for selecting */}
+      {!locked && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">ESPN Leaderboard — Select Picks</span>
+            <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
+          </div>
+          {leaderboard.length === 0 ? (
+            <div className="card-body" style={{color:'var(--text-muted)'}}>
+              {loading ? 'Loading leaderboard...' : 'No tournament data available.'}
+            </div>
+          ) : (
+            <div style={{overflowX:'auto'}}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Place</th>
+                    <th>Golfer</th>
+                    <th>Strokes</th>
+                    <th>Thru</th>
+                    <th style={{textAlign:'center',color:'#f87171'}}>Don</th>
+                    <th style={{textAlign:'center',color:'#60a5fa'}}>Bill</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaderboard.map((g, i) => {
+                    const billHas = billPicks.includes(g.name);
+                    const donHas  = donPicks.includes(g.name);
+                    return (
+                      <tr key={i} style={billHas || donHas ? {background:'rgba(255,255,255,0.04)'} : {}}>
+                        <td>{g.place}</td>
+                        <td style={{fontWeight: billHas||donHas ? 600 : 400}}>{g.name}</td>
+                        <td>{fmtScore(g.strokes)}</td>
+                        <td>{g.thru}</td>
+                        <td style={{textAlign:'center'}}>
+                          <input type="checkbox" checked={donHas}
+                            onChange={() => togglePick(setDonPicks, donPicks, g.name)}
+                            style={{cursor:'pointer',width:'16px',height:'16px'}}
+                          />
+                        </td>
+                        <td style={{textAlign:'center'}}>
+                          <input type="checkbox" checked={billHas}
+                            onChange={() => togglePick(setBillPicks, billPicks, g.name)}
+                            style={{cursor:'pointer',width:'16px',height:'16px'}}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
