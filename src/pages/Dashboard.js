@@ -3,31 +3,46 @@ import { supabase } from '../utils/supabase';
 import { computeScoring } from '../utils/scoring';
 import { fetchLeaderboard } from '../utils/espnGolfApi';
 
-const TOURNAMENT = '2026-masters';
+const TOURNAMENT  = '2026-masters';
+const PICKS_CACHE = 'golf_picks_cache';
+
+function getCachedPicks() {
+  try { return JSON.parse(localStorage.getItem(PICKS_CACHE) || '{"bill":[],"don":[],"locked":false}'); }
+  catch { return { bill: [], don: [], locked: false }; }
+}
+function setCachedPicks(bill, don, locked) {
+  try { localStorage.setItem(PICKS_CACHE, JSON.stringify({ bill, don, locked })); }
+  catch {}
+}
 
 export default function Dashboard() {
+  const cached = getCachedPicks();
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [loading, setLoading]         = useState(false);
+  const [loading,     setLoading]     = useState(false);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
-  const [billPicks, setBillPicks]     = useState([]);
-  const [donPicks,  setDonPicks]      = useState([]);
-  const [locked,    setLocked]        = useState(false);
-  const [saving,    setSaving]        = useState(false);
+  const [billPicks,   setBillPicks]   = useState(cached.bill   || []);
+  const [donPicks,    setDonPicks]    = useState(cached.don    || []);
+  const [locked,      setLocked]      = useState(cached.locked || false);
+  const [saving,      setSaving]      = useState(false);
 
+  // Load picks from Supabase and update cache
   const loadPicks = useCallback(async () => {
     const { data, error } = await supabase
       .from('picks')
       .select('player, golfers, locked')
       .eq('tournament', TOURNAMENT);
     if (error) { console.error(error); return; }
-    let isLocked = false;
+    let bill = [], don = [], isLocked = false;
     data.forEach(row => {
-      if (row.player === 'Bill') setBillPicks(row.golfers || []);
-      if (row.player === 'Don')  setDonPicks(row.golfers  || []);
+      if (row.player === 'Bill') bill = row.golfers || [];
+      if (row.player === 'Don')  don  = row.golfers || [];
       if (row.locked) isLocked = true;
     });
+    setBillPicks(bill);
+    setDonPicks(don);
     setLocked(isLocked);
+    setCachedPicks(bill, don, isLocked);
   }, []);
 
   useEffect(() => { loadPicks(); }, [loadPicks]);
@@ -64,18 +79,23 @@ export default function Dashboard() {
     else if (picks.length < 8) updated = [...picks, name];
     else return;
     setter(updated);
+    const newBill = player === 'Bill' ? updated : billPicks;
+    const newDon  = player === 'Don'  ? updated : donPicks;
+    setCachedPicks(newBill, newDon, locked);
     await savePicks(player, updated, locked);
   };
 
   const handleLock = async () => {
     await savePicks('Bill', billPicks, true);
     await savePicks('Don',  donPicks,  true);
+    setCachedPicks(billPicks, donPicks, true);
     setLocked(true);
   };
 
   const handleUnlock = async () => {
     await savePicks('Bill', billPicks, false);
     await savePicks('Don',  donPicks,  false);
+    setCachedPicks(billPicks, donPicks, false);
     setLocked(false);
   };
 
@@ -130,7 +150,7 @@ export default function Dashboard() {
                   <td style={{padding:'6px 12px'}}>{g.thru??'--'}</td>
                 </tr>
               ) : (
-                <tr key={i}><td style={{padding:'6px 12px',color:'var(--text-dim)'}}>--</td><td></td><td></td><td></td></tr>
+                <tr key={i}><td colSpan={4} style={{padding:'6px 12px',color:'var(--text-dim)',textAlign:'center'}}>--</td></tr>
               )
             )}
           </tbody>
@@ -147,17 +167,15 @@ export default function Dashboard() {
 
   return (
     <div>
-      {/* Updating banner - floats at top, only shows on refresh (not first load) */}
       {loading && !isFirstLoad && (
         <div style={{
-          position:'fixed', top:'64px', left:'50%', transform:'translateX(-50%)',
-          background:'#1d4ed8', color:'#fff', padding:'6px 20px',
-          borderRadius:'20px', fontSize:'13px', fontWeight:600,
-          zIndex:999, boxShadow:'0 2px 12px rgba(0,0,0,0.4)',
-          display:'flex', alignItems:'center', gap:'8px'
+          position:'fixed',top:'64px',left:'50%',transform:'translateX(-50%)',
+          background:'#1d4ed8',color:'#fff',padding:'6px 20px',
+          borderRadius:'20px',fontSize:'13px',fontWeight:600,
+          zIndex:999,boxShadow:'0 2px 12px rgba(0,0,0,0.4)',
+          display:'flex',alignItems:'center',gap:'8px'
         }}>
-          <span style={{display:'inline-block',animation:'spin 1s linear infinite'}}>&#x1F504;</span>
-          Updating scores...
+          🔄 Updating scores...
         </div>
       )}
 
