@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getEntries } from '../utils/storage';
 import { computeScoring } from '../utils/scoring';
 import { fetchLeaderboard } from '../utils/espnGolfApi';
@@ -16,13 +16,19 @@ export default function Dashboard() {
     setDonPicks(entries.don || []);
   }, []);
 
-  const handleUpdate = async () => {
+  const update = useCallback(async () => {
     setLoading(true);
     const data = await fetchLeaderboard();
     setLeaderboard(data);
     setLastUpdated(new Date().toLocaleTimeString());
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [update]);
 
   const enrich = (picks) =>
     picks.map(name => {
@@ -46,7 +52,7 @@ export default function Dashboard() {
       <div className="card">
         <div className={`section-header ${headerClass}`}>
           <span className="section-header-title">{player}'s Team</span>
-          {scoring && <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Best 3 highlighted</span>}
+          <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Best 3 highlighted ★</span>
         </div>
         <table className="data-table">
           <thead><tr><th>Golfer</th><th>Strokes</th><th>Place</th><th>Thru</th></tr></thead>
@@ -67,12 +73,11 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="page-title">🏌️ Dashboard</div>
-      <div className="action-bar">
-        <button className="btn btn-primary" onClick={handleUpdate} disabled={loading}>
-          {loading ? 'Updating...' : '⚡ Auto Update'}
-        </button>
-        {lastUpdated && <span className="status-bar">Last updated: {lastUpdated}</span>}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+        <div className="page-title" style={{marginBottom:0}}>🏌️ Dashboard</div>
+        <span className="status-bar">
+          {loading ? '🔄 Updating...' : lastUpdated ? `⏱ Last updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
+        </span>
       </div>
       <div className="player-tables-grid">
         <PlayerTable player="Bill" data={billData} headerClass="bill-header" />

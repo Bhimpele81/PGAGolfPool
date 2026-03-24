@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { fetchLeaderboard } from '../utils/espnGolfApi';
 
 export default function TournamentEntry() {
@@ -6,24 +6,29 @@ export default function TournamentEntry() {
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const handleFetch = async () => {
+  const update = useCallback(async () => {
     setLoading(true);
     const data = await fetchLeaderboard();
     setLeaderboard(data);
     setLastUpdated(new Date().toLocaleTimeString());
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [update]);
 
   return (
     <div>
-      <div className="page-title">📊 ESPN Leaderboard</div>
-      <div className="action-bar">
-        <button className="btn btn-primary" onClick={handleFetch} disabled={loading}>
-          {loading ? 'Loading...' : '⚡ Fetch Live Leaderboard'}
-        </button>
-        {lastUpdated && <span className="status-bar">Last updated: {lastUpdated}</span>}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+        <div className="page-title" style={{marginBottom:0}}>📊 ESPN Leaderboard</div>
+        <span className="status-bar">
+          {loading ? '🔄 Updating...' : lastUpdated ? `⏱ Last updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
+        </span>
       </div>
-      {leaderboard.length > 0 && (
+      {leaderboard.length > 0 ? (
         <div className="card">
           <div className="card-header"><span className="card-title">Live Standings</span></div>
           <table className="data-table">
@@ -40,6 +45,8 @@ export default function TournamentEntry() {
             </tbody>
           </table>
         </div>
+      ) : (
+        !loading && <div className="card"><div className="card-body" style={{color:'var(--text-muted)'}}>No tournament in progress or data unavailable.</div></div>
       )}
     </div>
   );
