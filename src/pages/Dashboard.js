@@ -21,7 +21,6 @@ export default function Dashboard() {
   const update = useCallback(async () => {
     setLoading(true);
     const data = await fetchLeaderboard();
-    // Always sort lowest score (best) to top
     const sorted = [...data].sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
     setLeaderboard(sorted);
     setLastUpdated(new Date().toLocaleTimeString());
@@ -75,7 +74,7 @@ export default function Dashboard() {
     <div>
       {/* Header row */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
-        <div className="page-title" style={{marginBottom:0}}>⛳ Live Leaderboard</div>
+        <div className="page-title" style={{marginBottom:0}}>2026 Masters Tournament</div>
         <span className="status-bar">
           {loading ? '🔄 Fetching...' : lastUpdated ? `⏱ Updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
         </span>
