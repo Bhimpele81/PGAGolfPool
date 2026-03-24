@@ -1,17 +1,13 @@
 import React, { useState } from 'react';
 import './App.css';
 import Dashboard from './pages/Dashboard';
-import DraftPicks from './pages/DraftPicks';
 import TournamentEntry from './pages/TournamentEntry';
-import History from './pages/History';
 import Rules from './pages/Rules';
 
 const TABS = [
-  { id: 'dashboard',  label: 'Dashboard' },
-  { id: 'draft',      label: 'Draft Picks' },
-  { id: 'entry',      label: 'Leaderboard' },
-  { id: 'history',    label: 'History' },
-  { id: 'rules',      label: 'Rules' },
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'entry',     label: 'Leaderboard' },
+  { id: 'rules',     label: 'Rules' },
 ];
 
 export default function App() {
@@ -20,9 +16,7 @@ export default function App() {
   const renderPage = () => {
     switch(tab) {
       case 'dashboard': return <Dashboard />;
-      case 'draft':     return <DraftPicks />;
       case 'entry':     return <TournamentEntry />;
-      case 'history':   return <History />;
       case 'rules':     return <Rules />;
       default:          return <Dashboard />;
     }
