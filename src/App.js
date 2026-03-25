@@ -35,6 +35,13 @@ export default function App() {
               className="nav-btn"
               style={{textDecoration:'none'}}
             >NASCAR Pool</a>
+            <a
+              href="https://ncaabowlpool.onrender.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nav-btn"
+              style={{textDecoration:'none'}}
+            >Bowl Pool</a>
           </nav>
         </div>
       </header>
