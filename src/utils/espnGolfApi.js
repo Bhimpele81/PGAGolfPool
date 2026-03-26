@@ -1,4 +1,31 @@
 const CACHE_KEY = 'golf_leaderboard_cache';
+const FREEZE_KEY = 'golf_leaderboard_frozen';
+const FREEZE_DATA_KEY = 'golf_leaderboard_frozen_data';
+
+export function isFrozen() {
+  try { return JSON.parse(localStorage.getItem(FREEZE_KEY) || 'false'); }
+  catch { return false; }
+}
+
+export function getFrozenData() {
+  try { return JSON.parse(localStorage.getItem(FREEZE_DATA_KEY) || 'null'); }
+  catch { return null; }
+}
+
+export function freezeLeaderboard(data) {
+  try {
+    localStorage.setItem(FREEZE_KEY, 'true');
+    localStorage.setItem(FREEZE_DATA_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+export function unfreezeLeaderboard() {
+  try {
+    localStorage.removeItem(FREEZE_KEY);
+    localStorage.removeItem(FREEZE_DATA_KEY);
+  } catch {}
+}
+
 const PROXIES = [
   (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
   (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
@@ -30,6 +57,12 @@ async function fetchWithProxy(apiUrl) {
 }
 
 export async function fetchLeaderboard() {
+  // If frozen, return frozen data immediately — don't call ESPN
+  if (isFrozen()) {
+    const frozenData = getFrozenData();
+    if (frozenData) return frozenData;
+  }
+
   const apiUrl = 'https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard';
   try {
     const json = await fetchWithProxy(apiUrl);
@@ -49,6 +82,10 @@ export async function fetchLeaderboard() {
           return { name, strokes, place, thru };
         });
         const sorted = results.sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
+        // Auto-freeze if the leader has finished
+        if (sorted[0]?.thru === 'F') {
+          freezeLeaderboard(sorted);
+        }
         setCache(sorted); // save latest good data
         return sorted;
       }

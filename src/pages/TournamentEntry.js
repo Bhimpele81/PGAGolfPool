@@ -1,32 +1,53 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchLeaderboard } from '../utils/espnGolfApi';
+import { fetchLeaderboard, isFrozen, unfreezeLeaderboard } from '../utils/espnGolfApi';
 
 export default function TournamentEntry() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [frozen, setFrozen] = useState(isFrozen());
 
   const update = useCallback(async () => {
     setLoading(true);
     const data = await fetchLeaderboard();
     setLeaderboard(data);
     setLastUpdated(new Date().toLocaleTimeString());
+    setFrozen(isFrozen());
     setLoading(false);
   }, []);
 
   useEffect(() => {
     update();
+    if (frozen) return; // don't auto-refresh when frozen
     const interval = setInterval(update, 60000);
     return () => clearInterval(interval);
-  }, [update]);
+  }, [update, frozen]);
+
+  const handleUnfreeze = () => {
+    unfreezeLeaderboard();
+    setFrozen(false);
+    update();
+  };
 
   return (
     <div>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
         <div className="page-title" style={{marginBottom:0}}>📊 ESPN Leaderboard</div>
-        <span className="status-bar">
-          {loading ? '🔄 Updating...' : lastUpdated ? `⏱ Last updated: ${lastUpdated} • auto-refreshes every 60s` : ''}
-        </span>
+        <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+          {frozen && (
+            <>
+              <span style={{background:'rgba(96,165,250,0.15)',border:'1px solid #60a5fa',color:'#60a5fa',borderRadius:'12px',padding:'3px 10px',fontSize:'12px',fontWeight:600}}>
+                ❄️ Final Results
+              </span>
+              <button className="btn btn-secondary" style={{fontSize:'12px',padding:'4px 10px'}} onClick={handleUnfreeze}>
+                🔓 Unfreeze
+              </button>
+            </>
+          )}
+          <span className="status-bar">
+            {loading ? '🔄 Updating...' : lastUpdated ? (frozen ? `⏱ Frozen at: ${lastUpdated}` : `⏱ Last updated: ${lastUpdated} • auto-refreshes every 60s`) : ''}
+          </span>
+        </div>
       </div>
       {leaderboard.length > 0 ? (
         <div className="card">
