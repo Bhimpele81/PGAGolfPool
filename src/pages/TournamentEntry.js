@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchLeaderboard, isFrozen, unfreezeLeaderboard } from '../utils/espnGolfApi';
+import { fetchLeaderboard, isFrozen, unfreezeLeaderboard, freezeLeaderboard } from '../utils/espnGolfApi';
 
 export default function TournamentEntry() {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -23,6 +23,11 @@ export default function TournamentEntry() {
     return () => clearInterval(interval);
   }, [update, frozen]);
 
+  const handleFreeze = () => {
+    freezeLeaderboard(leaderboard);
+    setFrozen(true);
+  };
+
   const handleUnfreeze = () => {
     unfreezeLeaderboard();
     setFrozen(false);
@@ -34,7 +39,7 @@ export default function TournamentEntry() {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
         <div className="page-title" style={{marginBottom:0}}>📊 ESPN Leaderboard</div>
         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-          {frozen && (
+          {frozen ? (
             <>
               <span style={{background:'rgba(96,165,250,0.15)',border:'1px solid #60a5fa',color:'#60a5fa',borderRadius:'12px',padding:'3px 10px',fontSize:'12px',fontWeight:600}}>
                 ❄️ Final Results
@@ -43,6 +48,10 @@ export default function TournamentEntry() {
                 🔓 Unfreeze
               </button>
             </>
+          ) : (
+            <button className="btn btn-secondary" style={{fontSize:'12px',padding:'4px 10px'}} onClick={handleFreeze} disabled={leaderboard.length === 0}>
+              🧊 Freeze
+            </button>
           )}
           <span className="status-bar">
             {loading ? '🔄 Updating...' : lastUpdated ? (frozen ? `⏱ Frozen at: ${lastUpdated}` : `⏱ Last updated: ${lastUpdated} • auto-refreshes every 60s`) : ''}

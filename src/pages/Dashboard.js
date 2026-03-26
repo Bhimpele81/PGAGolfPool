@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabase';
 import { computeScoring } from '../utils/scoring';
-import { fetchLeaderboard, isFrozen, unfreezeLeaderboard } from '../utils/espnGolfApi';
+import { fetchLeaderboard, isFrozen, unfreezeLeaderboard, freezeLeaderboard } from '../utils/espnGolfApi';
 
 const TOURNAMENT  = '2026-masters';
 const PICKS_CACHE = 'golf_picks_cache';
@@ -185,7 +185,7 @@ export default function Dashboard() {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
         <div className="page-title" style={{marginBottom:0}}>2026 Masters Tournament</div>
         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-          {frozen && (
+          {frozen ? (
             <>
               <span style={{background:'rgba(96,165,250,0.15)',border:'1px solid #60a5fa',color:'#60a5fa',borderRadius:'12px',padding:'3px 10px',fontSize:'12px',fontWeight:600}}>
                 ❄️ Final Results
@@ -194,6 +194,10 @@ export default function Dashboard() {
                 🔓 Unfreeze
               </button>
             </>
+          ) : (
+            <button className="btn btn-secondary" style={{fontSize:'12px',padding:'4px 10px'}} onClick={() => { freezeLeaderboard(leaderboard); setFrozen(true); }} disabled={leaderboard.length === 0}>
+              🧊 Freeze
+            </button>
           )}
           <span className="status-bar">
             {saving ? '💾 Saving...' : lastUpdated ? (frozen ? `⏱ Frozen at: ${lastUpdated}` : `⏱ Last updated ${lastUpdated}`) : '⏳ Loading...'}
