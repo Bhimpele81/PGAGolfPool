@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { fetchLeaderboard, isFrozen, unfreezeLeaderboard, freezeLeaderboard } from '../utils/espnGolfApi';
+import { fetchLeaderboard, isFrozen, unfreezeLeaderboard, freezeLeaderboard, getCache, getFrozenData } from '../utils/espnGolfApi';
 
 export default function TournamentEntry() {
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboard, setLeaderboard] = useState(() => getFrozenData() || getCache() || []);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [frozen, setFrozen] = useState(isFrozen());

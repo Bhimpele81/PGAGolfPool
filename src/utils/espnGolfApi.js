@@ -31,7 +31,7 @@ const PROXIES = [
   (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
 ];
 
-function getCache() {
+export function getCache() {
   try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); }
   catch { return null; }
 }

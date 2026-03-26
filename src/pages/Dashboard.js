@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabase';
 import { computeScoring } from '../utils/scoring';
-import { fetchLeaderboard, isFrozen, unfreezeLeaderboard, freezeLeaderboard } from '../utils/espnGolfApi';
+import { fetchLeaderboard, isFrozen, unfreezeLeaderboard, freezeLeaderboard, getCache, getFrozenData } from '../utils/espnGolfApi';
 
 const TOURNAMENT  = '2026-masters';
 const PICKS_CACHE = 'golf_picks_cache';
@@ -17,7 +17,7 @@ function setCachedPicks(bill, don, locked) {
 
 export default function Dashboard() {
   const cached = getCachedPicks();
-  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboard, setLeaderboard] = useState(() => getFrozenData() || getCache() || []);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [loading,     setLoading]     = useState(false);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
