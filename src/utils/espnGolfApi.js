@@ -82,8 +82,9 @@ export async function fetchLeaderboard() {
           return { name, strokes, place, thru };
         });
         const sorted = results.sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
-        // Auto-freeze if the leader has finished
-        if (sorted[0]?.thru === 'F') {
+        // Auto-freeze only if it's Round 4 and the leader has finished
+        const round = json?.events?.[0]?.competitions?.[0]?.status?.period ?? 0;
+        if (round === 4 && sorted[0]?.thru === 'F') {
           freezeLeaderboard(sorted);
         }
         setCache(sorted); // save latest good data
