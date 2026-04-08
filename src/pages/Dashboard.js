@@ -26,6 +26,8 @@ export default function Dashboard() {
   const [locked,      setLocked]      = useState(cached.locked || false);
   const [saving,      setSaving]      = useState(false);
   const [frozen,      setFrozen]      = useState(isFrozen());
+  const [draftMode,   setDraftMode]   = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Load picks from Supabase and update cache
   const loadPicks = useCallback(async () => {
@@ -125,7 +127,7 @@ export default function Dashboard() {
   const billPadded = pad(billData);
   const donPadded  = pad(donData);
 
-  const TeamPanel = ({ player, rows, best3, picks, accentColor, headerBg }) => {
+  const TeamPanel = ({ player, rows, best3, picks, setter, accentColor, headerBg }) => {
     const best3Total = rows
       .filter(g => g && best3.includes(g.name) && g.strokes != null)
       .reduce((sum, g) => sum + g.strokes, 0);
@@ -141,6 +143,7 @@ export default function Dashboard() {
             <tr>
               <th style={{textAlign:'left'}}>Golfer</th>
               <th>Strokes</th><th>Place</th><th>Thru</th>
+              {draftMode && <th style={{width:'40px'}}></th>}
             </tr>
           </thead>
           <tbody>
@@ -151,9 +154,17 @@ export default function Dashboard() {
                   <td style={{padding:'6px 12px',color:g.strokes<0?'#4ade80':g.strokes>0?'#f87171':'inherit'}}>{fmtScore(g.strokes)}</td>
                   <td style={{padding:'6px 12px'}}>{g.place??'--'}</td>
                   <td style={{padding:'6px 12px'}}>{g.thru??'--'}</td>
+                  {draftMode && (
+                    <td style={{padding:'6px 4px'}}>
+                      <button
+                        onClick={() => togglePick(player, picks, setter, g.name)}
+                        style={{background:'rgba(248,113,113,0.15)',color:'#f87171',border:'1px solid rgba(248,113,113,0.3)',borderRadius:'4px',width:'24px',height:'24px',cursor:'pointer',fontSize:'12px',fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',padding:0}}
+                      >✕</button>
+                    </td>
+                  )}
                 </tr>
               ) : (
-                <tr key={i}><td colSpan={4} style={{padding:'6px 12px',color:'var(--text-dim)',textAlign:'center'}}>--</td></tr>
+                <tr key={i}><td colSpan={draftMode?5:4} style={{padding:'6px 12px',color:'var(--text-dim)',textAlign:'center'}}>--</td></tr>
               )
             )}
           </tbody>
@@ -227,58 +238,85 @@ export default function Dashboard() {
       )}
 
       <div className="team-panels">
-        <TeamPanel player="Bill" rows={billPadded} best3={billBest3} picks={billPicks} accentColor="#60a5fa" headerBg="#1e3a5f" />
-        <TeamPanel player="Don"  rows={donPadded}  best3={donBest3}  picks={donPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
+        <TeamPanel player="Bill" rows={billPadded} best3={billBest3} picks={billPicks} setter={setBillPicks} accentColor="#60a5fa" headerBg="#1e3a5f" />
+        <TeamPanel player="Don"  rows={donPadded}  best3={donBest3}  picks={donPicks}  setter={setDonPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
       </div>
 
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'12px'}}>
+      <div style={{display:'flex',justifyContent:'flex-end',gap:'10px',marginBottom:'12px'}}>
+        {!locked && (
+          <button
+            className={`btn ${draftMode ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => { setDraftMode(d => !d); setSearchQuery(''); }}
+          >
+            {draftMode ? '📝 Draft Mode: ON' : '📝 Draft Mode: OFF'}
+          </button>
+        )}
         {!locked
-          ? <button className="btn btn-green" onClick={handleLock} disabled={billPicks.length===0&&donPicks.length===0}>🔒 Lock Picks</button>
+          ? <button className="btn btn-green" onClick={() => { handleLock(); setDraftMode(false); }} disabled={billPicks.length===0&&donPicks.length===0}>🔒 Lock Picks</button>
           : <button className="btn btn-secondary" onClick={handleUnlock}>🔓 Edit Picks</button>
         }
       </div>
 
-      {!locked && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">ESPN Leaderboard — Select Picks</span>
-            <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
-          </div>
-          {isFirstLoad && loading ? (
-            <div className="card-body" style={{color:'var(--text-muted)'}}>Loading leaderboard...</div>
-          ) : leaderboard.length===0 ? (
-            <div className="card-body" style={{color:'var(--text-muted)'}}>No tournament data available.</div>
-          ) : (
-            <div style={{overflowX:'auto'}}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{textAlign:'left'}}>Place</th>
-                    <th style={{textAlign:'left'}}>Golfer</th>
-                    <th>Strokes</th><th>Thru</th><th>Bill</th><th>Don</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.map((g, i) => {
-                    const billHas = billPicks.includes(g.name);
-                    const donHas  = donPicks.includes(g.name);
-                    return (
-                      <tr key={i} style={billHas||donHas?{background:'rgba(255,255,255,0.03)'}:{}}>
-                        <td style={{textAlign:'left'}}>{g.place}</td>
-                        <td style={{textAlign:'left',fontWeight:billHas||donHas?600:400}}>{g.name}</td>
-                        <td>{fmtScore(g.strokes)}</td>
-                        <td>{g.thru}</td>
-                        <td><input type="checkbox" checked={billHas} onChange={()=>togglePick('Bill',billPicks,setBillPicks,g.name)} style={{cursor:'pointer',width:'16px',height:'16px'}}/></td>
-                        <td><input type="checkbox" checked={donHas}  onChange={()=>togglePick('Don',donPicks,setDonPicks,g.name)}  style={{cursor:'pointer',width:'16px',height:'16px'}}/></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+      {!locked && (() => {
+        const displayBoard = draftMode
+          ? [...leaderboard]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .filter(g => !searchQuery || g.name.toLowerCase().includes(searchQuery.toLowerCase()))
+          : leaderboard;
+        return (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">{draftMode ? 'Draft Board — Add Golfers' : 'ESPN Leaderboard — Select Picks'}</span>
+              <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
             </div>
-          )}
-        </div>
-      )}
+            {draftMode && (
+              <div style={{padding:'10px 16px',borderBottom:'1px solid var(--navy-border)',background:'var(--navy-light)'}}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search golfers by name..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{maxWidth:'400px'}}
+                />
+              </div>
+            )}
+            {isFirstLoad && loading ? (
+              <div className="card-body" style={{color:'var(--text-muted)'}}>Loading leaderboard...</div>
+            ) : leaderboard.length===0 ? (
+              <div className="card-body" style={{color:'var(--text-muted)'}}>No tournament data available.</div>
+            ) : (
+              <div style={{overflowX:'auto'}}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      {!draftMode && <th style={{textAlign:'left'}}>Place</th>}
+                      <th style={{textAlign:'left'}}>Golfer</th>
+                      <th>Strokes</th><th>Thru</th><th>Bill</th><th>Don</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayBoard.map((g, i) => {
+                      const billHas = billPicks.includes(g.name);
+                      const donHas  = donPicks.includes(g.name);
+                      return (
+                        <tr key={i} style={billHas||donHas?{background:'rgba(255,255,255,0.03)'}:{}}>
+                          {!draftMode && <td style={{textAlign:'left'}}>{g.place}</td>}
+                          <td style={{textAlign:'left',fontWeight:billHas||donHas?600:400}}>{g.name}</td>
+                          <td>{fmtScore(g.strokes)}</td>
+                          <td>{g.thru}</td>
+                          <td><input type="checkbox" checked={billHas} onChange={()=>togglePick('Bill',billPicks,setBillPicks,g.name)} style={{cursor:'pointer',width:'16px',height:'16px'}}/></td>
+                          <td><input type="checkbox" checked={donHas}  onChange={()=>togglePick('Don',donPicks,setDonPicks,g.name)}  style={{cursor:'pointer',width:'16px',height:'16px'}}/></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
