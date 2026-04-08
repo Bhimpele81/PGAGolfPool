@@ -7,11 +7,11 @@ const TOURNAMENT  = '2026-masters';
 const PICKS_CACHE = 'golf_picks_cache';
 
 function getCachedPicks() {
-  try { return JSON.parse(localStorage.getItem(PICKS_CACHE) || '{"bill":[],"don":[],"locked":false}'); }
-  catch { return { bill: [], don: [], locked: false }; }
+  try { return JSON.parse(localStorage.getItem(PICKS_CACHE) || '{"bill":[],"don":[]}'); }
+  catch { return { bill: [], don: [] }; }
 }
-function setCachedPicks(bill, don, locked) {
-  try { localStorage.setItem(PICKS_CACHE, JSON.stringify({ bill, don, locked })); }
+function setCachedPicks(bill, don) {
+  try { localStorage.setItem(PICKS_CACHE, JSON.stringify({ bill, don })); }
   catch {}
 }
 
@@ -23,7 +23,6 @@ export default function Dashboard() {
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [billPicks,   setBillPicks]   = useState(cached.bill   || []);
   const [donPicks,    setDonPicks]    = useState(cached.don    || []);
-  const [locked,      setLocked]      = useState(cached.locked || false);
   const [saving,      setSaving]      = useState(false);
   const [frozen,      setFrozen]      = useState(isFrozen());
   const [draftMode,   setDraftMode]   = useState(false);
@@ -33,27 +32,25 @@ export default function Dashboard() {
   const loadPicks = useCallback(async () => {
     const { data, error } = await supabase
       .from('picks')
-      .select('player, golfers, locked')
+      .select('player, golfers')
       .eq('tournament', TOURNAMENT);
     if (error) { console.error(error); return; }
-    let bill = [], don = [], isLocked = false;
+    let bill = [], don = [];
     data.forEach(row => {
       if (row.player === 'Bill') bill = row.golfers || [];
       if (row.player === 'Don')  don  = row.golfers || [];
-      if (row.locked) isLocked = true;
     });
     setBillPicks(bill);
     setDonPicks(don);
-    setLocked(isLocked);
-    setCachedPicks(bill, don, isLocked);
+    setCachedPicks(bill, don);
   }, []);
 
   useEffect(() => { loadPicks(); }, [loadPicks]);
 
-  const savePicks = useCallback(async (player, golfers, isLocked) => {
+  const savePicks = useCallback(async (player, golfers) => {
     setSaving(true);
     await supabase.from('picks').upsert(
-      { tournament: TOURNAMENT, player, golfers, locked: isLocked },
+      { tournament: TOURNAMENT, player, golfers, locked: false },
       { onConflict: 'tournament,player' }
     );
     setSaving(false);
@@ -78,7 +75,7 @@ export default function Dashboard() {
   }, [update]);
 
   const togglePick = async (player, picks, setter, name) => {
-    if (locked) return;
+    if (!draftMode) return;
     let updated;
     if (picks.includes(name)) updated = picks.filter(n => n !== name);
     else if (picks.length < 8) updated = [...picks, name];
@@ -86,22 +83,8 @@ export default function Dashboard() {
     setter(updated);
     const newBill = player === 'Bill' ? updated : billPicks;
     const newDon  = player === 'Don'  ? updated : donPicks;
-    setCachedPicks(newBill, newDon, locked);
-    await savePicks(player, updated, locked);
-  };
-
-  const handleLock = async () => {
-    await savePicks('Bill', billPicks, true);
-    await savePicks('Don',  donPicks,  true);
-    setCachedPicks(billPicks, donPicks, true);
-    setLocked(true);
-  };
-
-  const handleUnlock = async () => {
-    await savePicks('Bill', billPicks, false);
-    await savePicks('Don',  donPicks,  false);
-    setCachedPicks(billPicks, donPicks, false);
-    setLocked(false);
+    setCachedPicks(newBill, newDon);
+    await savePicks(player, updated);
   };
 
   const enrich = (picks) =>
@@ -243,44 +226,42 @@ export default function Dashboard() {
       </div>
 
       <div style={{display:'flex',justifyContent:'flex-end',gap:'10px',marginBottom:'12px'}}>
-        {!locked && (
-          <button
-            className={`btn ${draftMode ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => { setDraftMode(d => !d); setSearchQuery(''); }}
-          >
-            {draftMode ? '📝 Draft Mode: ON' : '📝 Draft Mode: OFF'}
-          </button>
-        )}
-        {!locked
-          ? <button className="btn btn-green" onClick={() => { handleLock(); setDraftMode(false); }} disabled={billPicks.length===0&&donPicks.length===0}>🔒 Lock Picks</button>
-          : <button className="btn btn-secondary" onClick={handleUnlock}>🔓 Edit Picks</button>
-        }
+        <button
+          className={`btn ${draftMode ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => { setDraftMode(d => !d); setSearchQuery(''); }}
+        >
+          {draftMode ? '📝 Draft Mode: ON' : '📝 Draft Mode: OFF'}
+        </button>
       </div>
 
-      {!locked && (() => {
-        const displayBoard = draftMode
-          ? [...leaderboard]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .filter(g => !searchQuery || g.name.toLowerCase().includes(searchQuery.toLowerCase()))
-          : leaderboard;
+      {draftMode && (() => {
+        const displayBoard = [...leaderboard]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .filter(g => !searchQuery || g.name.toLowerCase().includes(searchQuery.toLowerCase()));
         return (
           <div className="card">
             <div className="card-header">
-              <span className="card-title">{draftMode ? 'Draft Board — Add Golfers' : 'ESPN Leaderboard — Select Picks'}</span>
+              <span className="card-title">Draft Board — Add Golfers</span>
               <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
             </div>
-            {draftMode && (
-              <div style={{padding:'10px 16px',borderBottom:'1px solid var(--navy-border)',background:'var(--navy-light)'}}>
+            <div style={{padding:'10px 16px',borderBottom:'1px solid var(--navy-border)',background:'var(--navy-light)'}}>
+              <div style={{position:'relative',maxWidth:'400px'}}>
                 <input
                   type="text"
                   className="form-input"
                   placeholder="Search golfers by name..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  style={{maxWidth:'400px'}}
+                  style={{paddingRight:'32px'}}
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    style={{position:'absolute',right:'8px',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:'14px',padding:'2px 4px',lineHeight:1}}
+                  >✕</button>
+                )}
               </div>
-            )}
+            </div>
             {isFirstLoad && loading ? (
               <div className="card-body" style={{color:'var(--text-muted)'}}>Loading leaderboard...</div>
             ) : leaderboard.length===0 ? (
@@ -290,7 +271,6 @@ export default function Dashboard() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      {!draftMode && <th style={{textAlign:'left'}}>Place</th>}
                       <th style={{textAlign:'left'}}>Golfer</th>
                       <th>Strokes</th><th>Thru</th><th>Bill</th><th>Don</th>
                     </tr>
@@ -301,7 +281,6 @@ export default function Dashboard() {
                       const donHas  = donPicks.includes(g.name);
                       return (
                         <tr key={i} style={billHas||donHas?{background:'rgba(255,255,255,0.03)'}:{}}>
-                          {!draftMode && <td style={{textAlign:'left'}}>{g.place}</td>}
                           <td style={{textAlign:'left',fontWeight:billHas||donHas?600:400}}>{g.name}</td>
                           <td>{fmtScore(g.strokes)}</td>
                           <td>{g.thru}</td>
