@@ -10,9 +10,10 @@
 
 ### 🎯 Pick Management
 - Each player (Bill & Don) selects up to **8 golfers** from the live ESPN field
-- Checkboxes in the leaderboard make picking fast and intuitive
-- **Lock Picks** button freezes selections when the tournament begins — hides the selection table entirely
-- **Edit Picks** button unlocks picks if changes are needed before the round
+- **Draft Mode** toggle controls all pick editing:
+  - **ON** — Draft Board appears with golfers sorted A-Z, search bar to find golfers by name, checkboxes to add golfers, and ✕ remove buttons on each team panel
+  - **OFF** — Hides the draft board and shows the clean scoring view
+- Search bar includes a clear ✕ button for quick resets
 - Picks are saved to **Supabase** cloud database — visible across all devices instantly
 - Picks are also **cached in localStorage** so they load instantly on every visit with zero blank screens
 
@@ -42,7 +43,7 @@
 
 ### ☁️ Backend & Infrastructure
 - **Supabase** PostgreSQL database stores picks per tournament
-- `picks` table with `tournament`, `player`, `golfers[]`, `locked` columns
+- `picks` table with `tournament`, `player`, `golfers[]` columns
 - **No login required** — open the app and go
 - Hosted on **Render** (free tier) with auto-deploy from GitHub
 - `/health` endpoint for UptimeRobot monitoring to prevent cold starts
