@@ -78,13 +78,25 @@ export async function fetchLeaderboard() {
           // Place: try status.position first, then fall back to competitor order
           const place = c.status?.position?.displayName
             || (c.order ? String(c.order) : '--');
-          // Thru: try status.thru first, then count holes from linescores
+          // Thru: try status.thru first, then count holes from linescores, then tee time
           let thru = '--';
           if (c.status?.thru != null) {
             thru = c.status.thru === 0 ? 'F' : String(c.status.thru);
-          } else if (c.linescores?.[0]?.linescores) {
+          } else if (c.linescores?.[0]?.linescores?.length > 0) {
             const holesPlayed = c.linescores[0].linescores.length;
-            thru = holesPlayed >= 18 ? 'F' : holesPlayed > 0 ? String(holesPlayed) : '--';
+            thru = holesPlayed >= 18 ? 'F' : String(holesPlayed);
+          } else {
+            // Not started — try to extract tee time from stats
+            const stats = c.linescores?.[0]?.statistics?.categories?.[0]?.stats;
+            const teeTimeStr = stats?.[stats.length - 1]?.displayValue;
+            if (teeTimeStr && teeTimeStr.includes(':')) {
+              try {
+                const d = new Date(teeTimeStr);
+                if (!isNaN(d)) {
+                  thru = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                }
+              } catch {}
+            }
           }
           return { name, strokes, place, thru };
         });
