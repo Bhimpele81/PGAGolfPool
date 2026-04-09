@@ -75,10 +75,17 @@ export async function fetchLeaderboard() {
           let strokes = null;
           if (rawScore === 'E') strokes = 0;
           else if (rawScore) strokes = parseInt(rawScore.replace('+', ''), 10);
-          const place = c.status?.position?.displayName || '--';
-          const thru = c.status?.thru != null
-            ? (c.status.thru === 0 ? 'F' : String(c.status.thru))
-            : '--';
+          // Place: try status.position first, then fall back to competitor order
+          const place = c.status?.position?.displayName
+            || (c.order ? String(c.order) : '--');
+          // Thru: try status.thru first, then count holes from linescores
+          let thru = '--';
+          if (c.status?.thru != null) {
+            thru = c.status.thru === 0 ? 'F' : String(c.status.thru);
+          } else if (c.linescores?.[0]?.linescores) {
+            const holesPlayed = c.linescores[0].linescores.length;
+            thru = holesPlayed >= 18 ? 'F' : holesPlayed > 0 ? String(holesPlayed) : '--';
+          }
           return { name, strokes, place, thru };
         });
         const sorted = results.sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
