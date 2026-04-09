@@ -27,8 +27,8 @@ export function unfreezeLeaderboard() {
 }
 
 const PROXIES = [
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
   (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
 ];
 
 export function getCache() {
