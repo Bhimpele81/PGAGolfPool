@@ -14,15 +14,14 @@ export function computeScoring(billData, donData) {
   const billTotal = billBest.length === 3 ? sum(billBest) : null;
   const donTotal  = donBest.length  === 3 ? sum(donBest)  : null;
 
-  // Golfer Win ($20): who has the single lowest individual score
+  // Golfer Win ($20): only if a picked golfer is in sole 1st place
   const allGolfers = [
     ...billData.map(g => ({ ...g, player: 'Bill' })),
     ...donData.map(g  => ({ ...g, player: 'Don'  })),
   ];
-  const validGolfers = allGolfers.filter(g => g.strokes != null);
-  validGolfers.sort((a, b) => a.strokes - b.strokes);
-  const golferWinPlayer = validGolfers.length ? validGolfers[0].player : null;
-  const golferWinName   = validGolfers.length ? validGolfers[0].name   : '--';
+  const inFirst = allGolfers.filter(g => g.place === '1' || g.place === 1);
+  const golferWinPlayer = inFirst.length === 1 ? inFirst[0].player : null;
+  const golferWinName   = inFirst.length === 1 ? inFirst[0].name   : '--';
 
   // Best Cumulative Score ($20): whose best-3 total is lower
   let bestCumWinner = null;
