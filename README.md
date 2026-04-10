@@ -19,7 +19,10 @@
 
 ### 📊 Live Scoring
 - Pulls **live leaderboard data from the ESPN API** every 60 seconds automatically
-- Uses a **dual CORS proxy fallback** system (allorigins.win → corsproxy.io) for reliable ESPN access
+- Uses a **dual CORS proxy fallback** system (codetabs.com → allorigins.win) for reliable ESPN access
+- **Round-aware** — automatically tracks the current round (1–4) and displays holes played for that round
+- **Tied place calculation** — when ESPN omits position data during live rounds, places are calculated from scores with proper tie handling (e.g., T1, T3, T6)
+- **Tee times** — golfers who haven't started their round show their tee time (e.g., "12:27 PM") in the Thru column
 - Leaderboard data is **cached in localStorage** — always shows the most recent scores even during refresh
 - Falls back to a **built-in demo field** of 24 golfers when no live or cached data is available
 - A floating **🔄 Updating scores...** banner appears during background refreshes so scores never disappear
@@ -38,7 +41,7 @@
 ### 💰 Net Total Win Banner
 - Color-coded banner shows who is currently **leading overall** and by how much
 - Calculates the full net result across all three scoring components:
-  - 🏅 **Golfer Win** — $20 to the player whose golfer wins the tournament
+  - 🏅 **Golfer Win** — $20 to the player whose golfer is in sole possession of 1st place (not awarded during ties at the top)
   - 📊 **Cumulative Score Win** — $20 to the player with the better combined best-3 score
   - 💰 **Stroke Differential** — $2 per stroke difference between best-3 totals
 - Banner turns **blue** when Bill leads, **red** when Don leads, neutral when tied
