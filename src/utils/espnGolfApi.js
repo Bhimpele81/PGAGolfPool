@@ -75,9 +75,8 @@ export async function fetchLeaderboard() {
           let strokes = null;
           if (rawScore === 'E') strokes = 0;
           else if (rawScore) strokes = parseInt(rawScore.replace('+', ''), 10);
-          // Place: try status.position first, then fall back to competitor order
-          const place = c.status?.position?.displayName
-            || (c.order ? String(c.order) : '--');
+          // Place: try status.position first, calculated after sorting below
+          const espnPlace = c.status?.position?.displayName || null;
           // Thru: try status.thru first, then count holes from linescores, then tee time
           let thru = '--';
           if (c.status?.thru != null) {
@@ -98,9 +97,24 @@ export async function fetchLeaderboard() {
               } catch {}
             }
           }
-          return { name, strokes, place, thru };
+          return { name, strokes, espnPlace, thru };
         });
         const sorted = results.sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
+        // Calculate tied places from scores when ESPN doesn't provide them
+        sorted.forEach((g, i) => {
+          if (g.espnPlace) {
+            g.place = g.espnPlace;
+          } else if (g.strokes == null) {
+            g.place = '--';
+          } else {
+            // Find how many players share this score
+            const sameScore = sorted.filter(x => x.strokes === g.strokes).length;
+            // Find the first index with this score (1-based)
+            const firstIdx = sorted.findIndex(x => x.strokes === g.strokes) + 1;
+            g.place = sameScore > 1 ? `T${firstIdx}` : String(firstIdx);
+          }
+          delete g.espnPlace;
+        });
         // Auto-freeze only if it's Round 4 and the leader has finished
         const round = json?.events?.[0]?.competitions?.[0]?.status?.period ?? 0;
         if (round === 4 && sorted[0]?.thru === 'F') {
