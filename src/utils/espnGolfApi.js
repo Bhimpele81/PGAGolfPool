@@ -67,7 +67,9 @@ export async function fetchLeaderboard() {
   try {
     const json = await fetchWithProxy(apiUrl);
     if (json) {
-      const competitors = json?.events?.[0]?.competitions?.[0]?.competitors || [];
+      const competition = json?.events?.[0]?.competitions?.[0];
+      const competitors = competition?.competitors || [];
+      const currentRound = competition?.status?.period || 1;
       if (competitors.length > 0) {
         const results = competitors.map(c => {
           const name = c.athlete?.displayName || '';
@@ -77,16 +79,17 @@ export async function fetchLeaderboard() {
           else if (rawScore) strokes = parseInt(rawScore.replace('+', ''), 10);
           // Place: try status.position first, calculated after sorting below
           const espnPlace = c.status?.position?.displayName || null;
-          // Thru: try status.thru first, then count holes from linescores, then tee time
+          // Thru: use current round's linescores to determine holes played
+          const currentRoundData = c.linescores?.find(l => l.period === currentRound);
           let thru = '--';
           if (c.status?.thru != null) {
             thru = c.status.thru === 0 ? 'F' : String(c.status.thru);
-          } else if (c.linescores?.[0]?.linescores?.length > 0) {
-            const holesPlayed = c.linescores[0].linescores.length;
+          } else if (currentRoundData?.linescores?.length > 0) {
+            const holesPlayed = currentRoundData.linescores.length;
             thru = holesPlayed >= 18 ? 'F' : String(holesPlayed);
           } else {
-            // Not started — try to extract tee time from stats
-            const stats = c.linescores?.[0]?.statistics?.categories?.[0]?.stats;
+            // Not started current round — try to extract tee time from stats
+            const stats = currentRoundData?.statistics?.categories?.[0]?.stats;
             const teeTimeStr = stats?.[stats.length - 1]?.displayValue;
             if (teeTimeStr && teeTimeStr.includes(':')) {
               try {
@@ -116,8 +119,7 @@ export async function fetchLeaderboard() {
           delete g.espnPlace;
         });
         // Auto-freeze only if it's Round 4 and the leader has finished
-        const round = json?.events?.[0]?.competitions?.[0]?.status?.period ?? 0;
-        if (round === 4 && sorted[0]?.thru === 'F') {
+        if (currentRound === 4 && sorted[0]?.thru === 'F') {
           freezeLeaderboard(sorted);
         }
         setCache(sorted); // save latest good data
