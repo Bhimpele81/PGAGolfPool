@@ -93,7 +93,14 @@ export async function fetchLeaderboard() {
             const teeTimeStr = stats?.[stats.length - 1]?.displayValue;
             if (teeTimeStr && teeTimeStr.includes(':')) {
               try {
-                const d = new Date(teeTimeStr);
+                // Safari doesn't recognize timezone abbreviations like PDT/PST/EDT/EST
+                // Replace them with UTC offsets so parsing works cross-browser
+                const fixedStr = teeTimeStr
+                  .replace(/\bPDT\b/, '-0700').replace(/\bPST\b/, '-0800')
+                  .replace(/\bEDT\b/, '-0400').replace(/\bEST\b/, '-0500')
+                  .replace(/\bCDT\b/, '-0500').replace(/\bCST\b/, '-0600')
+                  .replace(/\bMDT\b/, '-0600').replace(/\bMST\b/, '-0700');
+                const d = new Date(fixedStr);
                 if (!isNaN(d)) {
                   thru = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                 }
