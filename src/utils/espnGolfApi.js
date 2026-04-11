@@ -88,23 +88,21 @@ export async function fetchLeaderboard() {
             const holesPlayed = currentRoundData.linescores.length;
             thru = holesPlayed >= 18 ? 'F' : String(holesPlayed);
           } else {
-            // Not started current round — try to extract tee time from stats
+            // Not started current round — extract tee time from stats
+            // ESPN labels times with wrong timezone (e.g. "PDT") but they're
+            // actually in the tournament's local timezone, so just extract raw H:MM
             const stats = currentRoundData?.statistics?.categories?.[0]?.stats;
             const teeTimeStr = stats?.[stats.length - 1]?.displayValue;
-            if (teeTimeStr && teeTimeStr.includes(':')) {
-              try {
-                // Safari doesn't recognize timezone abbreviations like PDT/PST/EDT/EST
-                // Replace them with UTC offsets so parsing works cross-browser
-                const fixedStr = teeTimeStr
-                  .replace(/\bPDT\b/, '-0700').replace(/\bPST\b/, '-0800')
-                  .replace(/\bEDT\b/, '-0400').replace(/\bEST\b/, '-0500')
-                  .replace(/\bCDT\b/, '-0500').replace(/\bCST\b/, '-0600')
-                  .replace(/\bMDT\b/, '-0600').replace(/\bMST\b/, '-0700');
-                const d = new Date(fixedStr);
-                if (!isNaN(d)) {
-                  thru = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                }
-              } catch {}
+            if (teeTimeStr) {
+              const timeMatch = teeTimeStr.match(/(\d{1,2}):(\d{2}):\d{2}/);
+              if (timeMatch) {
+                let hour = parseInt(timeMatch[1], 10);
+                const min = timeMatch[2];
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                if (hour > 12) hour -= 12;
+                if (hour === 0) hour = 12;
+                thru = `${hour}:${min} ${ampm}`;
+              }
             }
           }
           return { name, strokes, espnPlace, thru };
