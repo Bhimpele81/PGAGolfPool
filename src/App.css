@@ -232,3 +232,13 @@ body {
   .brand-sub { display: none; }
   .scoring-summary { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 768px) {
+  .header-inner {
+    flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 6px;
+  }
+  .header-brand img { display: none; }
+  .brand-title { font-size: 15px; }
+  .brand-sub { display: none; }
+  .header-nav { gap: 2px; }
+  .nav-btn { padding: 5px 8px; font-size: 12px; }
+}
