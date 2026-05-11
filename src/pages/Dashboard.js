@@ -27,7 +27,6 @@ export default function Dashboard() {
   const [frozen,      setFrozen]      = useState(isFrozen());
   const [draftMode,   setDraftMode]   = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [draftSort,   setDraftSort]   = useState('score'); // 'score' | 'lastName'
 
   // Load picks from Supabase and update cache
   const loadPicks = useCallback(async () => {
@@ -238,9 +237,7 @@ export default function Dashboard() {
       {draftMode && (() => {
         const lastName = name => name.trim().split(' ').slice(-1)[0];
         const displayBoard = [...leaderboard]
-          .sort((a, b) => draftSort === 'lastName'
-            ? lastName(a.name).localeCompare(lastName(b.name))
-            : (a.strokes ?? 999) - (b.strokes ?? 999))
+          .sort((a, b) => lastName(a.name).localeCompare(lastName(b.name)))
           .filter(g => !searchQuery || g.name.toLowerCase().includes(searchQuery.toLowerCase()));
         return (
           <div className="card">
@@ -264,16 +261,6 @@ export default function Dashboard() {
                     style={{position:'absolute',right:'8px',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:'14px',padding:'2px 4px',lineHeight:1}}
                   >✕</button>
                 )}
-              </div>
-              <div style={{display:'flex',gap:6,flexShrink:0}}>
-                <button
-                  onClick={() => setDraftSort('score')}
-                  className={`btn btn-sm ${draftSort === 'score' ? 'btn-primary' : 'btn-ghost'}`}
-                >🏆 By Score</button>
-                <button
-                  onClick={() => setDraftSort('lastName')}
-                  className={`btn btn-sm ${draftSort === 'lastName' ? 'btn-primary' : 'btn-ghost'}`}
-                >A–Z Last Name</button>
               </div>
             </div>
             {isFirstLoad && loading ? (
