@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [frozen,      setFrozen]      = useState(isFrozen());
   const [draftMode,   setDraftMode]   = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [draftSort,   setDraftSort]   = useState('score'); // 'score' | 'lastName'
 
   // Load picks from Supabase and update cache
   const loadPicks = useCallback(async () => {
@@ -235,8 +236,11 @@ export default function Dashboard() {
       </div>
 
       {draftMode && (() => {
+        const lastName = name => name.trim().split(' ').slice(-1)[0];
         const displayBoard = [...leaderboard]
-          .sort((a, b) => a.name.localeCompare(b.name))
+          .sort((a, b) => draftSort === 'lastName'
+            ? lastName(a.name).localeCompare(lastName(b.name))
+            : (a.strokes ?? 999) - (b.strokes ?? 999))
           .filter(g => !searchQuery || g.name.toLowerCase().includes(searchQuery.toLowerCase()));
         return (
           <div className="card">
@@ -244,8 +248,8 @@ export default function Dashboard() {
               <span className="card-title">Draft Board — Add Golfers</span>
               <span style={{marginLeft:'auto',fontSize:'12px',color:'var(--text-muted)'}}>Bill ({billPicks.length}/8) • Don ({donPicks.length}/8)</span>
             </div>
-            <div style={{padding:'10px 16px',borderBottom:'1px solid var(--navy-border)',background:'var(--navy-light)'}}>
-              <div style={{position:'relative',maxWidth:'400px'}}>
+            <div style={{padding:'10px 16px',borderBottom:'1px solid var(--navy-border)',background:'var(--navy-light)',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+              <div style={{position:'relative',maxWidth:'400px',flex:1}}>
                 <input
                   type="text"
                   className="form-input"
@@ -260,6 +264,16 @@ export default function Dashboard() {
                     style={{position:'absolute',right:'8px',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--text-muted)',cursor:'pointer',fontSize:'14px',padding:'2px 4px',lineHeight:1}}
                   >✕</button>
                 )}
+              </div>
+              <div style={{display:'flex',gap:6,flexShrink:0}}>
+                <button
+                  onClick={() => setDraftSort('score')}
+                  className={`btn btn-sm ${draftSort === 'score' ? 'btn-primary' : 'btn-ghost'}`}
+                >🏆 By Score</button>
+                <button
+                  onClick={() => setDraftSort('lastName')}
+                  className={`btn btn-sm ${draftSort === 'lastName' ? 'btn-primary' : 'btn-ghost'}`}
+                >A–Z Last Name</button>
               </div>
             </div>
             {isFirstLoad && loading ? (
