@@ -42,6 +42,19 @@ function setCache(data) {
 }
 
 async function fetchWithProxy(apiUrl) {
+  // Try direct fetch first — ESPN's public API allows browser access without CORS proxy
+  // and returns the full untruncated response
+  try {
+    const res = await fetch(apiUrl, { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json) return json;
+    }
+  } catch (e) {
+    // CORS blocked — fall through to proxies
+  }
+
+  // Fall back to proxies if direct fetch fails
   for (const proxy of PROXIES) {
     try {
       const res = await fetch(proxy(apiUrl), { cache: 'no-store' });
