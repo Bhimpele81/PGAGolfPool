@@ -27,7 +27,7 @@ export function computeScoring(billData, donData) {
   let bestCumWinner = null;
   let differential  = 0;
   if (billTotal != null && donTotal != null) {
-    bestCumWinner = billTotal <= donTotal ? 'Bill' : 'Don';
+    bestCumWinner = billTotal < donTotal ? 'Bill' : donTotal < billTotal ? 'Don' : 'Tie';
     differential  = Math.abs(billTotal - donTotal);
   } else if (billTotal != null) {
     bestCumWinner = 'Bill';
@@ -41,13 +41,13 @@ export function computeScoring(billData, donData) {
   const billWins = [
     golferWinPlayer === 'Bill' ? 20 : 0,
     bestCumWinner   === 'Bill' ? 20 : 0,
-    bestCumWinner   === 'Bill' ?  differentialPayout : 0,
+    bestCumWinner   === 'Bill' ? differentialPayout : 0,
   ].reduce((a, b) => a + b, 0);
 
   const donWins = [
     golferWinPlayer === 'Don' ? 20 : 0,
     bestCumWinner   === 'Don' ? 20 : 0,
-    bestCumWinner   === 'Don' ?  differentialPayout : 0,
+    bestCumWinner   === 'Don' ? differentialPayout : 0,
   ].reduce((a, b) => a + b, 0);
 
   const netWinner = billWins > donWins ? 'Bill' : donWins > billWins ? 'Don' : 'Tie';
