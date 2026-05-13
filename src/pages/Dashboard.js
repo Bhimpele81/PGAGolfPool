@@ -49,10 +49,11 @@ export default function Dashboard() {
 
   const savePicks = useCallback(async (player, golfers) => {
     setSaving(true);
-    await supabase.from('picks').upsert(
+    const { error } = await supabase.from('picks').upsert(
       { tournament: TOURNAMENT, player, golfers, locked: false },
       { onConflict: 'tournament,player' }
     );
+    if (error) console.error('Supabase save error:', error);
     setSaving(false);
   }, []);
 
