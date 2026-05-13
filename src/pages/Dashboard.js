@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabase';
 import { computeScoring } from '../utils/scoring';
-import { fetchLeaderboard, isFrozen, unfreezeLeaderboard, freezeLeaderboard, getCache, getFrozenData } from '../utils/espnGolfApi';
+import { fetchLeaderboard, fetchTeeTimes, isFrozen, unfreezeLeaderboard, freezeLeaderboard, getCache, getFrozenData } from '../utils/espnGolfApi';
 
 const TOURNAMENT  = '2026-pga-championship';
 const PICKS_CACHE = 'golf_picks_cache';
@@ -66,6 +66,16 @@ export default function Dashboard() {
     setFrozen(isFrozen());
     setLoading(false);
     setIsFirstLoad(false);
+
+    // Background: enrich unstarted golfers with tee times from ESPN core API
+    // (does nothing if tournament is in progress and everyone has started)
+    fetchTeeTimes(sorted).then(teeTimes => {
+      if (Object.keys(teeTimes).length > 0) {
+        setLeaderboard(prev =>
+          prev.map(g => (g.thru === '--' && teeTimes[g.name]) ? { ...g, thru: teeTimes[g.name] } : g)
+        );
+      }
+    });
   }, []);
 
   useEffect(() => {

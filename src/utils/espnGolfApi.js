@@ -1,6 +1,12 @@
-const CACHE_KEY = 'golf_leaderboard_cache';
-const FREEZE_KEY = 'golf_leaderboard_frozen';
-const FREEZE_DATA_KEY = 'golf_leaderboard_frozen_data';
+const CACHE_KEY        = 'golf_leaderboard_cache';
+const FREEZE_KEY       = 'golf_leaderboard_frozen';
+const FREEZE_DATA_KEY  = 'golf_leaderboard_frozen_data';
+const TEE_CACHE_KEY    = 'golf_teetimes_cache';
+const TEE_ROUND_KEY    = 'golf_teetimes_round';
+
+// Module-level state populated each time fetchLeaderboard() runs
+let _eventId      = null;
+let _competitorMap = {}; // displayName → athleteId
 
 export function isFrozen() {
   try { return JSON.parse(localStorage.getItem(FREEZE_KEY) || 'false'); }
@@ -23,6 +29,8 @@ export function unfreezeLeaderboard() {
   try {
     localStorage.removeItem(FREEZE_KEY);
     localStorage.removeItem(FREEZE_DATA_KEY);
+    localStorage.removeItem(TEE_CACHE_KEY);
+    localStorage.removeItem(TEE_ROUND_KEY);
   } catch {}
 }
 
@@ -68,38 +76,85 @@ async function fetchWithProxy(apiUrl) {
   return null;
 }
 
-// Fetch tee times from the ESPN leaderboard HTML page
-async function fetchTeeTimes() {
-  const url = 'https://www.espn.com/golf/leaderboard';
-  for (const proxy of PROXIES) {
-    try {
-      const res = await fetch(proxy(url), { cache: 'no-store' });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const html = typeof data.contents === 'string' ? data.contents : await res.text();
-      if (!html || html.length < 100) continue;
+// ─── Tee-time helpers ────────────────────────────────────────────────────────
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const rows = doc.querySelectorAll('table tr');
-      const teeTimes = {};
-      rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
-        if (cells.length >= 2) {
-          const name = cells[0].replace(/[^a-zA-Z\s'.,-]/g, '').trim();
-          const time = cells[1].trim();
-          if (name && time && /\d+:\d+\s*(AM|PM)/i.test(time)) {
-            teeTimes[name] = time.replace('*', '').trim();
-          }
-        }
-      });
-      if (Object.keys(teeTimes).length > 0) return teeTimes;
-    } catch (e) {
-      continue;
-    }
-  }
-  return {};
+function formatTeeTime(isoString) {
+  try {
+    return new Date(isoString).toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true,
+      timeZone: 'America/New_York',
+    });
+  } catch (e) { return null; }
 }
+
+function getTeeTimesCache(round) {
+  try {
+    const cachedRound = localStorage.getItem(TEE_ROUND_KEY);
+    if (cachedRound !== String(round)) return {}; // stale — different round
+    return JSON.parse(localStorage.getItem(TEE_CACHE_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function setTeeTimesCache(teeTimes, round) {
+  try {
+    localStorage.setItem(TEE_CACHE_KEY, JSON.stringify(teeTimes));
+    localStorage.setItem(TEE_ROUND_KEY, String(round));
+  } catch {}
+}
+
+/**
+ * Fetch tee times for any golfers whose thru is '--'.
+ * Call this AFTER fetchLeaderboard() — it relies on _eventId / _competitorMap
+ * populated during that call.
+ *
+ * Returns a map of { playerName: '10:15 AM' } for golfers who haven't started.
+ * Fails silently (returns {}) if the core API is CORS-blocked.
+ */
+export async function fetchTeeTimes(leaderboard, currentRound = 1) {
+  if (!_eventId || !leaderboard.length) return {};
+
+  const notStarted = leaderboard.filter(g => g.thru === '--' && _competitorMap[g.name]);
+  if (!notStarted.length) return {};
+
+  // Serve from cache when possible
+  const cached = getTeeTimesCache(currentRound);
+  const uncached = notStarted.filter(g => !cached[g.name]);
+  if (!uncached.length) return cached;
+
+  const makeUrl = (name) =>
+    `https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/${_eventId}` +
+    `/competitions/${_eventId}/competitors/${_competitorMap[name]}/status`;
+
+  // ── CORS probe: try one request before committing to the rest ──
+  const first = uncached[0];
+  try {
+    const res = await fetch(makeUrl(first.name), { cache: 'no-store' });
+    if (!res.ok) return cached;
+    const d = await res.json();
+    if (d.teeTime) cached[first.name] = formatTeeTime(d.teeTime);
+  } catch (e) {
+    // CORS blocked or network error — return whatever we had cached
+    return cached;
+  }
+
+  // ── Fetch the rest in parallel ──
+  await Promise.allSettled(
+    uncached.slice(1).map(async (g) => {
+      try {
+        const res = await fetch(makeUrl(g.name), { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json();
+          if (d.teeTime) cached[g.name] = formatTeeTime(d.teeTime);
+        }
+      } catch (e) { /* skip */ }
+    })
+  );
+
+  setTeeTimesCache(cached, currentRound);
+  return cached;
+}
+
+// ─── Main leaderboard fetch ───────────────────────────────────────────────────
 
 export async function fetchLeaderboard() {
   // If frozen, return frozen data immediately — don't call ESPN
@@ -110,34 +165,46 @@ export async function fetchLeaderboard() {
 
   const apiUrl = 'https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard';
   try {
-    const [json, teeTimes] = await Promise.all([fetchWithProxy(apiUrl), fetchTeeTimes()]);
+    const json = await fetchWithProxy(apiUrl);
     if (json) {
-      const competition = json?.events?.[0]?.competitions?.[0];
-      const competitors = competition?.competitors || [];
-      const currentRound = competition?.status?.period || 1;
+      const competition   = json?.events?.[0]?.competitions?.[0];
+      const competitors   = competition?.competitors || [];
+      const eventId       = json?.events?.[0]?.id;
+      const currentRound  = competition?.status?.period || 1;
+
+      // Store for use by fetchTeeTimes()
+      if (eventId) _eventId = eventId;
+      _competitorMap = {};
+
       if (competitors.length > 0) {
         const results = competitors.map(c => {
           const name = c.athlete?.displayName || '';
+
+          // Build competitor → id map for tee-time lookups
+          if (c.id && name) _competitorMap[name] = c.id;
+
           const rawScore = c.score || 'E';
           let strokes = null;
           if (rawScore === 'E') strokes = 0;
           else if (rawScore) strokes = parseInt(rawScore.replace('+', ''), 10);
-          const espnPlace = c.status?.position?.displayName || null;
+
+          const espnPlace       = c.status?.position?.displayName || null;
           const currentRoundData = c.linescores?.find(l => l.period === currentRound);
+
           let thru = '--';
           if (c.status?.thru != null) {
             thru = c.status.thru === 0 ? 'F' : String(c.status.thru);
           } else if (currentRoundData?.linescores?.length > 0) {
             const holesPlayed = currentRoundData.linescores.length;
             thru = holesPlayed >= 18 ? 'F' : String(holesPlayed);
-          } else {
-            // Not started — look up tee time from HTML scrape
-            const teeTime = teeTimes[name];
-            if (teeTime) thru = teeTime;
           }
+          // (tee times for '--' golfers are filled in by fetchTeeTimes() after this returns)
+
           return { name, strokes, espnPlace, thru };
         });
+
         const sorted = results.sort((a, b) => (a.strokes ?? 999) - (b.strokes ?? 999));
+
         // Calculate tied places from scores when ESPN doesn't provide them
         sorted.forEach((g, i) => {
           if (g.espnPlace) {
@@ -145,19 +212,18 @@ export async function fetchLeaderboard() {
           } else if (g.strokes == null) {
             g.place = '--';
           } else {
-            // Find how many players share this score
             const sameScore = sorted.filter(x => x.strokes === g.strokes).length;
-            // Find the first index with this score (1-based)
-            const firstIdx = sorted.findIndex(x => x.strokes === g.strokes) + 1;
+            const firstIdx  = sorted.findIndex(x => x.strokes === g.strokes) + 1;
             g.place = sameScore > 1 ? `T${firstIdx}` : String(firstIdx);
           }
           delete g.espnPlace;
         });
+
         // Auto-freeze only if it's Round 4 and the leader has finished
         if (currentRound === 4 && sorted[0]?.thru === 'F') {
           freezeLeaderboard(sorted);
         }
-        setCache(sorted); // save latest good data
+        setCache(sorted);
         return sorted;
       }
     }
