@@ -43,7 +43,6 @@ function setCache(data) {
 
 async function fetchWithProxy(apiUrl) {
   // Try direct fetch first — ESPN's public API allows browser access without CORS proxy
-  // and returns the full untruncated response
   try {
     const res = await fetch(apiUrl, { cache: 'no-store' });
     if (res.ok) {
@@ -69,6 +68,39 @@ async function fetchWithProxy(apiUrl) {
   return null;
 }
 
+// Fetch tee times from the ESPN leaderboard HTML page
+async function fetchTeeTimes() {
+  const url = 'https://www.espn.com/golf/leaderboard';
+  for (const proxy of PROXIES) {
+    try {
+      const res = await fetch(proxy(url), { cache: 'no-store' });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const html = typeof data.contents === 'string' ? data.contents : await res.text();
+      if (!html || html.length < 100) continue;
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const rows = doc.querySelectorAll('table tr');
+      const teeTimes = {};
+      rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
+        if (cells.length >= 2) {
+          const name = cells[0].replace(/[^a-zA-Z\s'.,-]/g, '').trim();
+          const time = cells[1].trim();
+          if (name && time && /\d+:\d+\s*(AM|PM)/i.test(time)) {
+            teeTimes[name] = time.replace('*', '').trim();
+          }
+        }
+      });
+      if (Object.keys(teeTimes).length > 0) return teeTimes;
+    } catch (e) {
+      continue;
+    }
+  }
+  return {};
+}
+
 export async function fetchLeaderboard() {
   // If frozen, return frozen data immediately — don't call ESPN
   if (isFrozen()) {
@@ -78,7 +110,7 @@ export async function fetchLeaderboard() {
 
   const apiUrl = 'https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard';
   try {
-    const json = await fetchWithProxy(apiUrl);
+    const [json, teeTimes] = await Promise.all([fetchWithProxy(apiUrl), fetchTeeTimes()]);
     if (json) {
       const competition = json?.events?.[0]?.competitions?.[0];
       const competitors = competition?.competitors || [];
@@ -90,9 +122,7 @@ export async function fetchLeaderboard() {
           let strokes = null;
           if (rawScore === 'E') strokes = 0;
           else if (rawScore) strokes = parseInt(rawScore.replace('+', ''), 10);
-          // Place: try status.position first, calculated after sorting below
           const espnPlace = c.status?.position?.displayName || null;
-          // Thru: use current round's linescores to determine holes played
           const currentRoundData = c.linescores?.find(l => l.period === currentRound);
           let thru = '--';
           if (c.status?.thru != null) {
@@ -101,22 +131,9 @@ export async function fetchLeaderboard() {
             const holesPlayed = currentRoundData.linescores.length;
             thru = holesPlayed >= 18 ? 'F' : String(holesPlayed);
           } else {
-            // Not started current round — extract tee time from stats
-            // ESPN labels times with wrong timezone (e.g. "PDT") but they're
-            // actually in the tournament's local timezone, so just extract raw H:MM
-            const stats = currentRoundData?.statistics?.categories?.[0]?.stats;
-            const teeTimeStr = stats?.[stats.length - 1]?.displayValue;
-            if (teeTimeStr) {
-              const timeMatch = teeTimeStr.match(/(\d{1,2}):(\d{2}):\d{2}/);
-              if (timeMatch) {
-                let hour = parseInt(timeMatch[1], 10);
-                const min = timeMatch[2];
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                if (hour > 12) hour -= 12;
-                if (hour === 0) hour = 12;
-                thru = `${hour}:${min} ${ampm}`;
-              }
-            }
+            // Not started — look up tee time from HTML scrape
+            const teeTime = teeTimes[name];
+            if (teeTime) thru = teeTime;
           }
           return { name, strokes, espnPlace, thru };
         });
