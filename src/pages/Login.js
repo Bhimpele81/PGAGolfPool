@@ -9,8 +9,8 @@ export default function Login({ onSelect }) {
       <div style={{width:'100%', maxWidth:'400px'}}>
         <div style={{textAlign:'center', marginBottom:'32px'}}>
           <div style={{fontSize:'48px', marginBottom:'12px'}}>⛳</div>
-          <div style={{fontSize:'22px', fontWeight:800, color:'#fff', marginBottom:'6px'}}>PGA Golf Major Pool</div>
-          <div style={{fontSize:'14px', color:'var(--text-muted)'}}>2026 Masters Tournament — Bill vs Don</div>
+          <div style={{fontSize:'22px', fontWeight:800, color:'#fff', marginBottom:'6px'}}>US Open Golf Pool</div>
+          <div style={{fontSize:'14px', color:'var(--text-muted)'}}>2026 US Open — Bill vs Don</div>
         </div>
         <div style={{display:'flex', gap:'16px'}}>
           <button
