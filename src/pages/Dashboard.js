@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [billPicks,   setBillPicks]   = useState(cached.bill   || []);
   const [donPicks,    setDonPicks]    = useState(cached.don    || []);
   const [saving,      setSaving]      = useState(false);
+  const [saveError,   setSaveError]   = useState(null);
   const [frozen,      setFrozen]      = useState(isFrozen());
   const [draftMode,   setDraftMode]   = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,11 +50,15 @@ export default function Dashboard() {
 
   const savePicks = useCallback(async (player, golfers) => {
     setSaving(true);
+    setSaveError(null);
     const { error } = await supabase.from('picks').upsert(
       { tournament: TOURNAMENT, player, golfers, locked: false },
       { onConflict: 'tournament,player' }
     );
-    if (error) console.error('Supabase save error:', error);
+    if (error) {
+      console.error('Supabase save error:', error);
+      setSaveError(`Save failed: ${error.message}`);
+    }
     setSaving(false);
   }, []);
 
@@ -205,7 +210,7 @@ export default function Dashboard() {
             </button>
           )}
           <span className="status-bar">
-            {saving ? '💾 Saving...' : lastUpdated ? (frozen ? `⏱ Frozen at: ${lastUpdated}` : `⏱ Last updated ${lastUpdated}`) : '⏳ Loading...'}
+            {saving ? '💾 Saving...' : saveError ? <span style={{color:'#f87171'}}>{saveError}</span> : lastUpdated ? (frozen ? `⏱ Frozen at: ${lastUpdated}` : `⏱ Last updated ${lastUpdated}`) : '⏳ Loading...'}
           </span>
         </div>
       </div>
