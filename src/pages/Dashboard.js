@@ -3,7 +3,7 @@ import { supabase } from '../utils/supabase';
 import { computeScoring } from '../utils/scoring';
 import { fetchLeaderboard, fetchTeeTimes, isFrozen, unfreezeLeaderboard, freezeLeaderboard, getCache, getFrozenData } from '../utils/espnGolfApi';
 
-const TOURNAMENT  = '2026-us-open';
+const TOURNAMENT  = '2026-pga-championship';
 const PICKS_CACHE = 'golf_picks_cache';
 
 function getCachedPicks() {
