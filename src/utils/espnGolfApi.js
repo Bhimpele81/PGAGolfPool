@@ -7,6 +7,7 @@ const TEE_ROUND_KEY    = 'golf_teetimes_round';
 // Module-level state populated each time fetchLeaderboard() runs
 let _eventId      = null;
 let _competitorMap = {}; // displayName → athleteId
+let _currentRound = 1;   // live round; used to key the tee-time cache
 
 export function isFrozen() {
   try { return JSON.parse(localStorage.getItem(FREEZE_KEY) || 'false'); }
@@ -109,8 +110,12 @@ function setTeeTimesCache(teeTimes, round) {
  *
  * Returns a map of { playerName: '10:15 AM' } for golfers who haven't started.
  * Fails silently (returns {}) if the core API is CORS-blocked.
+ *
+ * currentRound defaults to the live round detected by fetchLeaderboard() so the
+ * tee-time cache invalidates when the round advances (otherwise Round 1 tee
+ * times would keep showing in Round 2).
  */
-export async function fetchTeeTimes(leaderboard, currentRound = 1) {
+export async function fetchTeeTimes(leaderboard, currentRound = _currentRound) {
   if (!_eventId || !leaderboard.length) return {};
 
   const notStarted = leaderboard.filter(g => g.thru === '--' && _competitorMap[g.name]);
@@ -174,6 +179,7 @@ export async function fetchLeaderboard() {
 
       // Store for use by fetchTeeTimes()
       if (eventId) _eventId = eventId;
+      _currentRound = currentRound;
       _competitorMap = {};
 
       if (competitors.length > 0) {
