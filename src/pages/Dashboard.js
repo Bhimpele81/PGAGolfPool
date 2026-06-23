@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [frozen,      setFrozen]      = useState(isFrozen());
   const [draftMode,   setDraftMode]   = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [firstPick,   setFirstPick]   = useState('');   // who had 1st pick in the previous contest
 
   // Load picks from Supabase and update cache
   const loadPicks = useCallback(async () => {
@@ -40,11 +41,20 @@ export default function Dashboard() {
     data.forEach(row => {
       if (row.player === 'Bill') bill = row.golfers || [];
       if (row.player === 'Don')  don  = row.golfers || [];
+      if (row.player === '_firstpick_prev') setFirstPick((row.golfers || [])[0] || '');
     });
     setBillPicks(bill);
     setDonPicks(don);
     setCachedPicks(bill, don);
   }, []);
+
+  const saveFirstPick = async (val) => {
+    setFirstPick(val);
+    await supabase.from('picks').upsert(
+      { tournament: TOURNAMENT, player: '_firstpick_prev', golfers: val ? [val] : [], locked: false },
+      { onConflict: 'tournament,player' }
+    );
+  };
 
   useEffect(() => { loadPicks(); }, [loadPicks]);
 
@@ -241,7 +251,16 @@ export default function Dashboard() {
         <TeamPanel player="Don"  rows={donPadded}  best3={donBest3}  picks={donPicks}  setter={setDonPicks}  accentColor="#f87171" headerBg="#5f1e1e" />
       </div>
 
-      <div style={{display:'flex',justifyContent:'flex-end',gap:'10px',marginBottom:'12px'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:'10px',marginBottom:'12px',flexWrap:'wrap'}}>
+        <label style={{fontSize:'13px',color:'var(--text-muted)',display:'flex',alignItems:'center',gap:'6px'}}>
+          First pick last contest:
+          <select value={firstPick} onChange={e => saveFirstPick(e.target.value)}
+            style={{padding:'5px 8px',borderRadius:'6px',border:'1px solid var(--navy-border)',background:'var(--navy-light)',color:'#fff',fontSize:'13px'}}>
+            <option value="">—</option>
+            <option value="Bill">Bill</option>
+            <option value="Don">Don</option>
+          </select>
+        </label>
         <button
           className={`btn ${draftMode ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => {
