@@ -193,7 +193,7 @@ export default function Dashboard() {
       )}
 
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
-        <div className="page-title" style={{marginBottom:0}}>2026 US Open</div>
+        <div className="page-title" style={{marginBottom:0}}>2026 Open Championship</div>
         <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
           {frozen ? (
             <>
@@ -244,7 +244,14 @@ export default function Dashboard() {
       <div style={{display:'flex',justifyContent:'flex-end',gap:'10px',marginBottom:'12px'}}>
         <button
           className={`btn ${draftMode ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => { setDraftMode(d => !d); setSearchQuery(''); }}
+          onClick={() => {
+            if (!draftMode) {
+              const code = window.prompt('Enter the passcode to enter Draft Mode:');
+              if (code === null) return;            // cancelled
+              if (code.trim() !== '1716') { alert('Incorrect passcode.'); return; }
+            }
+            setDraftMode(d => !d); setSearchQuery('');
+          }}
         >
           {draftMode ? '📝 Draft Mode: ON' : '📝 Draft Mode: OFF'}
         </button>
